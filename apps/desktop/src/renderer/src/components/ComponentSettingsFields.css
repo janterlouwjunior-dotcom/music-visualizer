@@ -28,3 +28,10 @@
   font-family: var(--font-family-ui);
   width: 100%;
 }
+
+.component-settings__note-range-count {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+}

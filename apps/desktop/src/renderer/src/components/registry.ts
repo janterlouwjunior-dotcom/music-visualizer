@@ -45,8 +45,15 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
     description: "A playable piano with a customizable key range — highlights incoming notes and plays back out.",
     icon: "🎹",
     configSchema: [
-      { key: "numberOfKeys", label: "Number of keys", type: "number", min: 24, max: 88 },
-      { key: "startNote", label: "Start note", type: "noteName" },
+      {
+        key: "noteRange",
+        label: "Key range",
+        type: "noteRange",
+        min: 0,
+        max: 127,
+        minGap: 23, // 24 keys - 1
+        maxGap: 87 // 88 keys - 1
+      },
       { key: "accentColor", label: "Accent color", type: "color" },
       { key: "inputDeviceId", label: "MIDI input device", type: "midiInputDevice" },
       { key: "inputChannel", label: "Input channel", type: "midiInputChannel" },
@@ -54,8 +61,7 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
       { key: "outputChannel", label: "Output channel", type: "midiOutputChannel" }
     ],
     defaultProps: {
-      numberOfKeys: 61,
-      startNote: 48,
+      noteRange: { low: 48, high: 108 },
       accentColor: "#6c8cff",
       inputDeviceId: "",
       inputChannel: 0,

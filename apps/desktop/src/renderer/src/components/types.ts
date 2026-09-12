@@ -7,11 +7,17 @@ export type ConfigFieldType =
   | "text"
   | "number"
   | "color"
-  | "noteName"
+  | "noteRange"
   | "midiInputDevice"
   | "midiOutputDevice"
   | "midiInputChannel"
   | "midiOutputChannel";
+
+/** Stored value shape for a "noteRange" field — MIDI note numbers, inclusive. */
+export interface NoteRangeValue {
+  low: number;
+  high: number;
+}
 
 export interface ConfigFieldSchema {
   key: string;
@@ -19,9 +25,12 @@ export interface ConfigFieldSchema {
   type: ConfigFieldType;
   /** Static options, for type "select" only — device/channel fields source their own options. */
   options?: { value: string; label: string }[];
-  /** For type "number" only. */
+  /** For "number": the value's bounds. For "noteRange": the slider track's overall bounds. */
   min?: number;
   max?: number;
+  /** For "noteRange" only: min/max allowed (high - low), e.g. a min/max key count minus one. */
+  minGap?: number;
+  maxGap?: number;
 }
 
 export interface MidiBridge {

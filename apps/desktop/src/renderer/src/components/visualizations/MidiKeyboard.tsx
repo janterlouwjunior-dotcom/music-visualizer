@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { VisualizationProps } from "../types";
+import type { NoteRangeValue, VisualizationProps } from "../types";
 import type { MidiSettings } from "../../../../shared/midiSettings";
 import { noteNumberToName } from "../../../../shared/midi";
 import "./MidiKeyboard.css";
 
 export interface MidiKeyboardConfig {
-  numberOfKeys: number;
-  /** MIDI note number of the leftmost/lowest key. */
-  startNote: number;
+  noteRange: NoteRangeValue;
   accentColor: string;
   inputDeviceId: string;
   /** 0 = All channels, 1-16 = specific. */
@@ -16,6 +14,9 @@ export interface MidiKeyboardConfig {
   /** 1-16 — there's no "All" for output, a message always goes out on one channel. */
   outputChannel: number;
 }
+
+/** Falls back to the old default range for workspace files saved before this field existed. */
+const DEFAULT_NOTE_RANGE: NoteRangeValue = { low: 48, high: 108 };
 
 const WHITE_PITCH_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
@@ -27,23 +28,16 @@ interface KeyInfo {
 }
 
 /**
- * Builds the key range [startNote, startNote + numberOfKeys - 1], clamped to
- * the valid MIDI range. A combination that would overflow (e.g. a high start
- * note with a large key count) just renders fewer keys than numberOfKeys
- * rather than silently rewriting either stored setting.
+ * Builds the key range [lowNote, highNote], clamped to the valid MIDI range.
  *
  * Returns exact left/right pixel bounds rather than assuming the range spans
- * [0, whiteCount * WHITE_KEY_WIDTH] — a start note that's itself a black key
- * (e.g. G#6, one of the examples that prompted this setting) pokes half a
- * black-key-width left of the first white key, which a 0-based viewBox would
- * clip.
+ * [0, whiteCount * WHITE_KEY_WIDTH] — a low note that's itself a black key
+ * (e.g. G#6) pokes half a black-key-width left of the first white key, which
+ * a 0-based viewBox would clip.
  */
-function buildKeys(
-  startNote: number,
-  numberOfKeys: number
-): { keys: KeyInfo[]; left: number; right: number } {
-  const firstNote = Math.max(0, Math.round(startNote));
-  const lastNote = Math.min(127, firstNote + numberOfKeys - 1);
+function buildKeys(lowNote: number, highNote: number): { keys: KeyInfo[]; left: number; right: number } {
+  const firstNote = Math.max(0, Math.round(lowNote));
+  const lastNote = Math.min(127, Math.round(highNote));
   const keys: KeyInfo[] = [];
   let whiteIndex = 0;
   for (let note = firstNote; note <= lastNote; note++) {
@@ -77,6 +71,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [midiSettings, setMidiSettings] = useState<MidiSettings>({ inputs: [], outputs: [] });
 
+  const noteRange = config.noteRange ?? DEFAULT_NOTE_RANGE;
+
   useEffect(() => {
     window.api.midiSettings.get().then(setMidiSettings);
   }, []);
@@ -102,8 +98,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
   }, [midi, config.inputDeviceId, config.inputChannel, inputSourceId]);
 
   const { keys, left, right } = useMemo(
-    () => buildKeys(config.startNote, config.numberOfKeys),
-    [config.startNote, config.numberOfKeys]
+    () => buildKeys(noteRange.low, noteRange.high),
+    [noteRange.low, noteRange.high]
   );
 
   function playNoteOn(note: number): void {
@@ -121,8 +117,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
   }
 
   const svgStyle = { "--accent-color": config.accentColor } as CSSProperties;
-  const firstNote = keys[0]?.note ?? config.startNote;
-  const lastNote = keys[keys.length - 1]?.note ?? config.startNote;
+  const firstNote = keys[0]?.note ?? noteRange.low;
+  const lastNote = keys[keys.length - 1]?.note ?? noteRange.high;
 
   return (
     <div className="midi-keyboard">
