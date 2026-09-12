@@ -13,6 +13,13 @@ First working prototype. What exists:
   (CSS custom properties) and two reskinned primitives (`Button`, `Panel`), kept
   as a separate npm workspace package so it can be reused later outside this app.
 - Sidebar with workspace switching, creation, duplication, and deletion.
+- Workspaces can be grouped into folders ("mother workspaces") via the folder
+  select on each workspace row. Opening a folder jumps to its first (by name)
+  child workspace, and **← / →** cycle between sibling workspaces in the same
+  folder (wrapping around) as long as focus isn't in a text/number field.
+  Deleting a folder ungroups its children rather than deleting them.
+- A per-workspace grid settings menu (columns, row height) in the workspace
+  toolbar.
 - A grid-based workspace layout (`react-grid-layout`) that persists to JSON
   files under the app's `userData/workspaces` folder — components can be
   dragged and resized, and changes autosave.

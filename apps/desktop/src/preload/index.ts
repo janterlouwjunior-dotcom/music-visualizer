@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Workspace, WorkspaceSummary } from "../shared/workspace";
+import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../shared/workspace";
 
 export interface UpdaterStatus {
   status: "available" | "up-to-date" | "downloading" | "ready" | "error";
@@ -15,7 +15,14 @@ const api = {
     create: (name: string): Promise<Workspace> => ipcRenderer.invoke("workspaces:create", name),
     duplicate: (id: string, newName: string): Promise<Workspace> =>
       ipcRenderer.invoke("workspaces:duplicate", id, newName),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke("workspaces:delete", id)
+    delete: (id: string): Promise<void> => ipcRenderer.invoke("workspaces:delete", id),
+    setFolder: (id: string, folderId: string | null): Promise<Workspace> =>
+      ipcRenderer.invoke("workspaces:setFolder", id, folderId)
+  },
+  folders: {
+    list: (): Promise<WorkspaceFolder[]> => ipcRenderer.invoke("folders:list"),
+    create: (name: string): Promise<WorkspaceFolder> => ipcRenderer.invoke("folders:create", name),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke("folders:delete", id)
   },
   updater: {
     install: (): Promise<void> => ipcRenderer.invoke("updater:install"),

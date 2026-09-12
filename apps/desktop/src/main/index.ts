@@ -6,8 +6,10 @@ import {
   duplicateWorkspace,
   listWorkspaces,
   loadWorkspace,
-  saveWorkspace
+  saveWorkspace,
+  setWorkspaceFolder
 } from "./workspaces";
+import { createFolder, deleteFolder, listFolders } from "./folders";
 import { initAutoUpdater, quitAndInstallUpdate } from "./updater";
 import type { Workspace } from "../shared/workspace";
 
@@ -63,6 +65,12 @@ function registerIpcHandlers(): void {
     duplicateWorkspace(id, newName)
   );
   ipcMain.handle("workspaces:delete", (_event, id: string) => deleteWorkspace(id));
+  ipcMain.handle("workspaces:setFolder", (_event, id: string, folderId: string | null) =>
+    setWorkspaceFolder(id, folderId)
+  );
+  ipcMain.handle("folders:list", () => listFolders());
+  ipcMain.handle("folders:create", (_event, name: string) => createFolder(name));
+  ipcMain.handle("folders:delete", (_event, id: string) => deleteFolder(id));
   ipcMain.handle("updater:install", () => quitAndInstallUpdate());
 }
 

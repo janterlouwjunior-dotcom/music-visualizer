@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceGrid } from "./components/WorkspaceGrid";
-import type { Workspace, WorkspaceSummary } from "../../shared/workspace";
+import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../../shared/workspace";
 import { midiService } from "./midi/midiService";
 import "./App.css";
 
 export function App() {
   const [summaries, setSummaries] = useState<WorkspaceSummary[]>([]);
+  const [folders, setFolders] = useState<WorkspaceFolder[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>("Initializing MIDI…");
   const saveTimer = useRef<number | null>(null);
@@ -17,15 +18,21 @@ export function App() {
     return list;
   }, []);
 
+  const refreshFolders = useCallback(async (): Promise<WorkspaceFolder[]> => {
+    const list = await window.api.folders.list();
+    setFolders(list);
+    return list;
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const list = await refreshSummaries();
+      const [list] = await Promise.all([refreshSummaries(), refreshFolders()]);
       if (list.length > 0) {
         const first = await window.api.workspaces.load(list[0].id);
         setActiveWorkspace(first);
       }
     })();
-  }, [refreshSummaries]);
+  }, [refreshSummaries, refreshFolders]);
 
   useEffect(() => {
     midiService.init().then((result) => {
@@ -41,6 +48,38 @@ export function App() {
       }
     });
   }, []);
+
+  // Left/right arrow keys cycle between sibling workspaces of the active
+  // workspace's folder ("mother workspace" navigation). Ignored while a form
+  // control has focus, so text/number fields keep their normal cursor movement.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
+        return;
+      }
+      if (!activeWorkspace?.folderId) return;
+
+      const siblings = summaries
+        .filter((s) => s.folderId === activeWorkspace.folderId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (siblings.length < 2) return;
+
+      const currentIndex = siblings.findIndex((s) => s.id === activeWorkspace.id);
+      if (currentIndex === -1) return;
+
+      const delta = event.key === "ArrowRight" ? 1 : -1;
+      const nextIndex = (currentIndex + delta + siblings.length) % siblings.length;
+      event.preventDefault();
+      handleSelectWorkspace(siblings[nextIndex].id);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeWorkspace, summaries]);
 
   async function handleSelectWorkspace(id: string): Promise<void> {
     const workspace = await window.api.workspaces.load(id);
@@ -70,6 +109,26 @@ export function App() {
     }
   }
 
+  async function handleCreateFolder(): Promise<void> {
+    const name = `New Folder ${folders.length + 1}`;
+    await window.api.folders.create(name);
+    await refreshFolders();
+  }
+
+  async function handleDeleteFolder(id: string): Promise<void> {
+    await window.api.folders.delete(id);
+    await Promise.all([refreshFolders(), refreshSummaries()]);
+    setActiveWorkspace((prev) => (prev && prev.folderId === id ? { ...prev, folderId: undefined } : prev));
+  }
+
+  async function handleMoveToFolder(workspaceId: string, folderId: string | null): Promise<void> {
+    await window.api.workspaces.setFolder(workspaceId, folderId);
+    await refreshSummaries();
+    setActiveWorkspace((prev) =>
+      prev && prev.id === workspaceId ? { ...prev, folderId: folderId ?? undefined } : prev
+    );
+  }
+
   function handleWorkspaceChange(next: Workspace): void {
     setActiveWorkspace(next);
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -82,11 +141,15 @@ export function App() {
     <div className="app">
       <Sidebar
         workspaces={summaries}
+        folders={folders}
         activeId={activeWorkspace?.id ?? null}
         onSelect={handleSelectWorkspace}
         onCreate={handleCreateWorkspace}
         onDuplicate={handleDuplicateWorkspace}
         onDelete={handleDeleteWorkspace}
+        onCreateFolder={handleCreateFolder}
+        onDeleteFolder={handleDeleteFolder}
+        onMoveToFolder={handleMoveToFolder}
       />
       <main className="app__main">
         <header className="app__header">

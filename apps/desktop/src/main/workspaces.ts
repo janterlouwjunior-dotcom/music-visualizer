@@ -48,7 +48,7 @@ export async function listWorkspaces(): Promise<WorkspaceSummary[]> {
     if (!entry.endsWith(".json")) continue;
     const raw = await fs.readFile(join(workspacesDir(), entry), "utf-8");
     const workspace = JSON.parse(raw) as Workspace;
-    summaries.push({ id: workspace.id, name: workspace.name });
+    summaries.push({ id: workspace.id, name: workspace.name, folderId: workspace.folderId });
   }
   return summaries.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -87,7 +87,14 @@ export async function deleteWorkspace(id: string): Promise<void> {
   await fs.rm(workspacePath(id), { force: true });
 }
 
-function slugify(name: string): string {
+export async function setWorkspaceFolder(id: string, folderId: string | null): Promise<Workspace> {
+  const workspace = await loadWorkspace(id);
+  const next: Workspace = { ...workspace, folderId: folderId ?? undefined };
+  await saveWorkspace(next);
+  return next;
+}
+
+export function slugify(name: string): string {
   return (
     name
       .toLowerCase()

@@ -24,10 +24,25 @@ export interface Workspace {
   name: string;
   /** Falls back to DEFAULT_GRID_SETTINGS when absent (older workspace files). */
   gridSettings?: GridSettings;
+  /** Id of the WorkspaceFolder this workspace belongs to, if any. */
+  folderId?: string;
   layout: ComponentInstance[];
 }
 
 export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  folderId?: string;
+}
+
+/**
+ * A folder groups workspaces as a "mother workspace" — selecting it opens its
+ * first child, and the left/right arrow keys cycle between siblings (see
+ * App.tsx's keydown handler). Child order is alphabetical by workspace name,
+ * not manually sortable, to keep this a lightweight grouping mechanism rather
+ * than a second layout system.
+ */
+export interface WorkspaceFolder {
   id: string;
   name: string;
 }
