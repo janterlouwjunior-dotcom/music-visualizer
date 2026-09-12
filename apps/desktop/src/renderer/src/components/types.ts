@@ -7,6 +7,7 @@ export type ConfigFieldType =
   | "text"
   | "number"
   | "color"
+  | "noteName"
   | "midiInputDevice"
   | "midiOutputDevice"
   | "midiInputChannel"

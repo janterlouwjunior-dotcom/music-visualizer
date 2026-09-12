@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { VisualizationProps } from "../types";
 import type { MidiSettings } from "../../../../shared/midiSettings";
+import { noteNumberToName } from "../../../../shared/midi";
 import "./MidiKeyboard.css";
 
 export interface MidiKeyboardConfig {
   numberOfKeys: number;
+  /** MIDI note number of the leftmost/lowest key. */
+  startNote: number;
   accentColor: string;
   inputDeviceId: string;
   /** 0 = All channels, 1-16 = specific. */
@@ -14,8 +17,6 @@ export interface MidiKeyboardConfig {
   outputChannel: number;
 }
 
-/** Top of an 88-key piano is C8 — shrinking numberOfKeys removes keys from the bottom. */
-const TOP_NOTE = 108;
 const WHITE_PITCH_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
 interface KeyInfo {
@@ -25,11 +26,27 @@ interface KeyInfo {
   x: number;
 }
 
-function buildKeys(numberOfKeys: number): { keys: KeyInfo[]; whiteCount: number } {
-  const startNote = TOP_NOTE - numberOfKeys + 1;
+/**
+ * Builds the key range [startNote, startNote + numberOfKeys - 1], clamped to
+ * the valid MIDI range. A combination that would overflow (e.g. a high start
+ * note with a large key count) just renders fewer keys than numberOfKeys
+ * rather than silently rewriting either stored setting.
+ *
+ * Returns exact left/right pixel bounds rather than assuming the range spans
+ * [0, whiteCount * WHITE_KEY_WIDTH] — a start note that's itself a black key
+ * (e.g. G#6, one of the examples that prompted this setting) pokes half a
+ * black-key-width left of the first white key, which a 0-based viewBox would
+ * clip.
+ */
+function buildKeys(
+  startNote: number,
+  numberOfKeys: number
+): { keys: KeyInfo[]; left: number; right: number } {
+  const firstNote = Math.max(0, Math.round(startNote));
+  const lastNote = Math.min(127, firstNote + numberOfKeys - 1);
   const keys: KeyInfo[] = [];
   let whiteIndex = 0;
-  for (let note = startNote; note <= TOP_NOTE; note++) {
+  for (let note = firstNote; note <= lastNote; note++) {
     const pitchClass = ((note % 12) + 12) % 12;
     if (WHITE_PITCH_CLASSES.has(pitchClass)) {
       keys.push({ note, isWhite: true, x: whiteIndex });
@@ -38,7 +55,17 @@ function buildKeys(numberOfKeys: number): { keys: KeyInfo[]; whiteCount: number 
       keys.push({ note, isWhite: false, x: whiteIndex - 0.5 });
     }
   }
-  return { keys, whiteCount: whiteIndex };
+
+  let left = 0;
+  let right = whiteIndex * WHITE_KEY_WIDTH;
+  for (const k of keys) {
+    if (!k.isWhite) {
+      left = Math.min(left, k.x * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2);
+      right = Math.max(right, k.x * WHITE_KEY_WIDTH + BLACK_KEY_WIDTH / 2);
+    }
+  }
+
+  return { keys, left, right };
 }
 
 const WHITE_KEY_WIDTH = 24;
@@ -74,7 +101,10 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
     });
   }, [midi, config.inputDeviceId, config.inputChannel, inputSourceId]);
 
-  const { keys, whiteCount } = useMemo(() => buildKeys(config.numberOfKeys), [config.numberOfKeys]);
+  const { keys, left, right } = useMemo(
+    () => buildKeys(config.startNote, config.numberOfKeys),
+    [config.startNote, config.numberOfKeys]
+  );
 
   function playNoteOn(note: number): void {
     setActiveNotes((prev) => new Set(prev).add(note));
@@ -90,17 +120,18 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
     midi.sendMidiNote({ type: "noteoff", note, velocity: 0, channel: config.outputChannel - 1 });
   }
 
-  const width = whiteCount * WHITE_KEY_WIDTH;
   const svgStyle = { "--accent-color": config.accentColor } as CSSProperties;
+  const firstNote = keys[0]?.note ?? config.startNote;
+  const lastNote = keys[keys.length - 1]?.note ?? config.startNote;
 
   return (
     <div className="midi-keyboard">
       <svg
-        viewBox={`0 0 ${width} ${WHITE_KEY_HEIGHT}`}
+        viewBox={`${left} 0 ${right - left} ${WHITE_KEY_HEIGHT}`}
         className="midi-keyboard__svg"
         style={svgStyle}
         role="img"
-        aria-label={`${config.numberOfKeys}-key MIDI keyboard`}
+        aria-label={`MIDI keyboard, ${noteNumberToName(firstNote)} to ${noteNumberToName(lastNote)}`}
       >
         {keys
           .filter((k) => k.isWhite)

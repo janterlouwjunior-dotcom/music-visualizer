@@ -46,6 +46,7 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
     icon: "🎹",
     configSchema: [
       { key: "numberOfKeys", label: "Number of keys", type: "number", min: 24, max: 88 },
+      { key: "startNote", label: "Start note", type: "noteName" },
       { key: "accentColor", label: "Accent color", type: "color" },
       { key: "inputDeviceId", label: "MIDI input device", type: "midiInputDevice" },
       { key: "inputChannel", label: "Input channel", type: "midiInputChannel" },
@@ -54,6 +55,7 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
     ],
     defaultProps: {
       numberOfKeys: 61,
+      startNote: 48,
       accentColor: "#6c8cff",
       inputDeviceId: "",
       inputChannel: 0,

@@ -31,11 +31,12 @@ First working prototype. What exists:
   entirely from that component's `configSchema` — components declare fields,
   they never build their own settings UI. Field types: `select`, `boolean`,
   `text`, `number` (with min/max), `color` (a hand-built hue/saturation wheel
-  + lightness slider, `@music-theory-viz/ui-kit`'s `ColorWheel`), and four
-  MIDI-aware types — `midiInputDevice`/`midiOutputDevice` (dropdowns sourced
-  live from the global Settings page below) and `midiInputChannel` (1-16 plus
-  "All")/`midiOutputChannel` (1-16). Circle of Fifths' key/MIDI-listen controls
-  now live here too, replacing its old inline UI.
+  + lightness slider, `@music-theory-viz/ui-kit`'s `ColorWheel`), `noteName`
+  (a MIDI note number 0-127, shown as "C4" etc.), and four MIDI-aware types —
+  `midiInputDevice`/`midiOutputDevice` (dropdowns sourced live from the
+  global Settings page below) and `midiInputChannel` (1-16 plus "All")/
+  `midiOutputChannel` (1-16). Circle of Fifths' key/MIDI-listen controls now
+  live here too, replacing its old inline UI.
 - A grid-based workspace layout (`react-grid-layout`) that persists to JSON
   files under the app's `userData/workspaces` folder — components can be
   dragged and resized, and changes autosave.
@@ -46,9 +47,15 @@ First working prototype. What exists:
     configurable highlighted key, and bidirectional MIDI (highlights on
     incoming notes, clicking a segment sends a note out).
   - **MIDI Keyboard** (`components/visualizations/MidiKeyboard.tsx`) — a
-    playable piano with a configurable key count (24-88; the top key is
-    always C8, keys are removed from the bottom as the count shrinks), an
-    accent color for highlighted keys, and named-device + channel filtering
+    playable piano with a configurable key count (24-88) and start note
+    (a "Start note" picker, e.g. C2 or G♯6, sets the leftmost/lowest key —
+    `shared/midi.ts`'s `noteNumberToName`/scientific pitch notation, C4 =
+    middle C). A start note that's a black key is handled correctly — it
+    pokes half a key-width left of the first white key, which the SVG
+    viewBox accounts for exactly rather than clipping it. A range that would
+    overflow past MIDI's valid 0-127 just renders fewer keys than requested
+    rather than silently rewriting either setting. Also: an accent color for
+    highlighted keys, and named-device + channel filtering
     for both input and output (see per-component settings above). Incoming
     notes are matched against the configured input device's real Web MIDI
     port id and channel (`shared/midi.ts`'s `MidiNoteEvent.portId`) — so two

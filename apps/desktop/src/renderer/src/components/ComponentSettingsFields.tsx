@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ColorWheel } from "@music-theory-viz/ui-kit";
 import type { MidiSettings } from "../../../shared/midiSettings";
+import { noteNumberToName } from "../../../shared/midi";
 import type { ConfigFieldSchema } from "./types";
 import "./ComponentSettingsFields.css";
 
@@ -18,6 +19,12 @@ const INPUT_CHANNEL_OPTIONS = [
 const OUTPUT_CHANNEL_OPTIONS = Array.from({ length: 16 }, (_, i) => ({
   value: String(i + 1),
   label: `Channel ${i + 1}`
+}));
+
+/** Full MIDI note range (0-127) as {value, label} pairs, e.g. value "60" label "C4". */
+const NOTE_NAME_OPTIONS = Array.from({ length: 128 }, (_, note) => ({
+  value: String(note),
+  label: noteNumberToName(note)
 }));
 
 /**
@@ -123,6 +130,21 @@ function renderField(
           onChange={(hex) => onConfigChange({ [field.key]: hex })}
           size={110}
         />
+      );
+
+    case "noteName":
+      return (
+        <select
+          className="component-settings__select"
+          value={String(value ?? 60)}
+          onChange={(e) => onConfigChange({ [field.key]: Number(e.target.value) })}
+        >
+          {NOTE_NAME_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       );
 
     case "midiInputDevice":
