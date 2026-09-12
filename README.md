@@ -20,6 +20,12 @@ First working prototype. What exists:
   Deleting a folder ungroups its children rather than deleting them.
 - A per-workspace grid settings menu (columns, row height) in the workspace
   toolbar.
+- **Edit / Play mode**, toggled with the **Tab** key (ignored while a text/number
+  field has focus, so normal tabbing between fields still works). Edit mode is
+  the full authoring experience; Play mode hides the sidebar and all layout
+  chrome (add/remove, drag, resize, grid settings) for distraction-free use in
+  front of a class — the visualizations' own interactive controls (e.g. Circle
+  of Fifths' key selector and MIDI listening) stay live in both modes.
 - A grid-based workspace layout (`react-grid-layout`) that persists to JSON
   files under the app's `userData/workspaces` folder — components can be
   dragged and resized, and changes autosave.

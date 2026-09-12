@@ -5,11 +5,14 @@ import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../../shared/
 import { midiService } from "./midi/midiService";
 import "./App.css";
 
+type Mode = "edit" | "play";
+
 export function App() {
   const [summaries, setSummaries] = useState<WorkspaceSummary[]>([]);
   const [folders, setFolders] = useState<WorkspaceFolder[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>("Initializing MIDI…");
+  const [mode, setMode] = useState<Mode>("edit");
   const saveTimer = useRef<number | null>(null);
 
   const refreshSummaries = useCallback(async (): Promise<WorkspaceSummary[]> => {
@@ -49,18 +52,25 @@ export function App() {
     });
   }, []);
 
-  // Left/right arrow keys cycle between sibling workspaces of the active
-  // workspace's folder ("mother workspace" navigation). Ignored while a form
-  // control has focus, so text/number fields keep their normal cursor movement.
+  // Tab toggles Edit/Play mode; Left/Right arrow keys cycle between sibling
+  // workspaces of the active workspace's folder ("mother workspace"
+  // navigation). Both are ignored while a form control has focus, so
+  // text/number fields (and normal Tab-to-next-field behavior) keep working.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
+      const isFormControl =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!target?.isContentEditable;
+
+      if (event.key === "Tab" && !isFormControl) {
+        event.preventDefault();
+        setMode((m) => (m === "edit" ? "play" : "edit"));
         return;
       }
+
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (isFormControl) return;
       if (!activeWorkspace?.folderId) return;
 
       const siblings = summaries
@@ -139,25 +149,36 @@ export function App() {
 
   return (
     <div className="app">
-      <Sidebar
-        workspaces={summaries}
-        folders={folders}
-        activeId={activeWorkspace?.id ?? null}
-        onSelect={handleSelectWorkspace}
-        onCreate={handleCreateWorkspace}
-        onDuplicate={handleDuplicateWorkspace}
-        onDelete={handleDeleteWorkspace}
-        onCreateFolder={handleCreateFolder}
-        onDeleteFolder={handleDeleteFolder}
-        onMoveToFolder={handleMoveToFolder}
-      />
+      {mode === "edit" && (
+        <Sidebar
+          workspaces={summaries}
+          folders={folders}
+          activeId={activeWorkspace?.id ?? null}
+          onSelect={handleSelectWorkspace}
+          onCreate={handleCreateWorkspace}
+          onDuplicate={handleDuplicateWorkspace}
+          onDelete={handleDeleteWorkspace}
+          onCreateFolder={handleCreateFolder}
+          onDeleteFolder={handleDeleteFolder}
+          onMoveToFolder={handleMoveToFolder}
+        />
+      )}
       <main className="app__main">
         <header className="app__header">
           <h1 className="app__title">{activeWorkspace?.name ?? "No workspace selected"}</h1>
-          <div className="app__midi-status">{midiStatus}</div>
+          <div className="app__header-status">
+            <span className="app__mode-indicator" title="Press Tab to switch modes">
+              {mode === "edit" ? "✎ Edit — Tab for Play" : "▶ Play — Tab to edit"}
+            </span>
+            <span className="app__midi-status">{midiStatus}</span>
+          </div>
         </header>
         {activeWorkspace ? (
-          <WorkspaceGrid workspace={activeWorkspace} onChange={handleWorkspaceChange} />
+          <WorkspaceGrid
+            workspace={activeWorkspace}
+            editable={mode === "edit"}
+            onChange={handleWorkspaceChange}
+          />
         ) : (
           <div className="app__empty">Create a workspace to get started.</div>
         )}
