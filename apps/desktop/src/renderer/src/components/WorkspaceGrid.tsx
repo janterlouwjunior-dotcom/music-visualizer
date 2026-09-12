@@ -1,10 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import { Panel, Button } from "@music-theory-viz/ui-kit";
-import type { Workspace, ComponentInstance } from "../../../shared/workspace";
+import {
+  DEFAULT_GRID_SETTINGS,
+  type ComponentInstance,
+  type GridSettings,
+  type Workspace
+} from "../../../shared/workspace";
 import { getVisualizationDefinition, listVisualizationDefinitions } from "./registry";
 import { midiService } from "../midi/midiService";
 import "./WorkspaceGrid.css";
+
+const MIN_COLS = 2;
+const MAX_COLS = 48;
+const MIN_ROW_HEIGHT = 10;
+const MAX_ROW_HEIGHT = 200;
 
 const AutoWidthGridLayout = WidthProvider(GridLayout);
 
@@ -15,6 +25,9 @@ interface WorkspaceGridProps {
 
 export function WorkspaceGrid({ workspace, onChange }: WorkspaceGridProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const gridSettings: GridSettings = workspace.gridSettings ?? DEFAULT_GRID_SETTINGS;
 
   const layout: Layout[] = useMemo(
     () =>
@@ -69,29 +82,92 @@ export function WorkspaceGrid({ workspace, onChange }: WorkspaceGridProps) {
     setPickerOpen(false);
   }
 
+  function updateGridSettings(partial: Partial<GridSettings>): void {
+    onChange({ ...workspace, gridSettings: { ...gridSettings, ...partial } });
+  }
+
   return (
     <div className="workspace-grid">
       <div className="workspace-grid__toolbar">
-        <Button variant="primary" size="sm" onClick={() => setPickerOpen((v) => !v)}>
-          + Add component
-        </Button>
-        {pickerOpen && (
-          <div className="workspace-grid__picker">
-            {listVisualizationDefinitions().map((def) => (
+        <div className="workspace-grid__toolbar-group">
+          <Button variant="primary" size="sm" onClick={() => setPickerOpen((v) => !v)}>
+            + Add component
+          </Button>
+          {pickerOpen && (
+            <div className="workspace-grid__popover">
+              {listVisualizationDefinitions().map((def) => (
+                <button
+                  key={def.key}
+                  className="workspace-grid__picker-item"
+                  onClick={() => addInstance(def.key)}
+                >
+                  <span className="workspace-grid__picker-icon">{def.icon}</span>
+                  <span className="workspace-grid__picker-text">
+                    <span className="workspace-grid__picker-name">{def.name}</span>
+                    <span className="workspace-grid__picker-desc">{def.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="workspace-grid__toolbar-group workspace-grid__toolbar-group--right">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSettingsOpen((v) => !v)}
+            title="Workspace settings"
+          >
+            ⚙ Grid settings
+          </Button>
+          {settingsOpen && (
+            <div className="workspace-grid__popover workspace-grid__popover--right">
+              <div className="workspace-grid__settings-field">
+                <label htmlFor="grid-cols">Columns</label>
+                <input
+                  id="grid-cols"
+                  type="number"
+                  min={MIN_COLS}
+                  max={MAX_COLS}
+                  value={gridSettings.cols}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (Number.isFinite(value)) {
+                      updateGridSettings({
+                        cols: Math.min(MAX_COLS, Math.max(MIN_COLS, Math.round(value)))
+                      });
+                    }
+                  }}
+                />
+              </div>
+              <div className="workspace-grid__settings-field">
+                <label htmlFor="grid-row-height">Row height (px)</label>
+                <input
+                  id="grid-row-height"
+                  type="number"
+                  min={MIN_ROW_HEIGHT}
+                  max={MAX_ROW_HEIGHT}
+                  value={gridSettings.rowHeight}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (Number.isFinite(value)) {
+                      updateGridSettings({
+                        rowHeight: Math.min(MAX_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, Math.round(value)))
+                      });
+                    }
+                  }}
+                />
+              </div>
               <button
-                key={def.key}
-                className="workspace-grid__picker-item"
-                onClick={() => addInstance(def.key)}
+                className="workspace-grid__settings-reset"
+                onClick={() => updateGridSettings(DEFAULT_GRID_SETTINGS)}
               >
-                <span className="workspace-grid__picker-icon">{def.icon}</span>
-                <span className="workspace-grid__picker-text">
-                  <span className="workspace-grid__picker-name">{def.name}</span>
-                  <span className="workspace-grid__picker-desc">{def.description}</span>
-                </span>
+                Reset to default
               </button>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {workspace.layout.length === 0 ? (
@@ -102,8 +178,8 @@ export function WorkspaceGrid({ workspace, onChange }: WorkspaceGridProps) {
         <AutoWidthGridLayout
           className="workspace-grid__layout"
           layout={layout}
-          cols={12}
-          rowHeight={40}
+          cols={gridSettings.cols}
+          rowHeight={gridSettings.rowHeight}
           margin={[12, 12]}
           compactType="vertical"
           onLayoutChange={handleLayoutChange}

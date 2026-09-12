@@ -10,9 +10,20 @@ export interface ComponentInstance {
   props?: Record<string, unknown>;
 }
 
+export interface GridSettings {
+  /** Number of grid columns spanning the workspace width. */
+  cols: number;
+  /** Height in pixels of a single grid row unit. */
+  rowHeight: number;
+}
+
+export const DEFAULT_GRID_SETTINGS: GridSettings = { cols: 12, rowHeight: 40 };
+
 export interface Workspace {
   id: string;
   name: string;
+  /** Falls back to DEFAULT_GRID_SETTINGS when absent (older workspace files). */
+  gridSettings?: GridSettings;
   layout: ComponentInstance[];
 }
 

@@ -1,7 +1,7 @@
 import { app } from "electron";
 import { promises as fs } from "fs";
 import { join } from "path";
-import type { Workspace, WorkspaceSummary } from "../shared/workspace";
+import { DEFAULT_GRID_SETTINGS, type Workspace, type WorkspaceSummary } from "../shared/workspace";
 
 function workspacesDir(): string {
   return join(app.getPath("userData"), "workspaces");
@@ -14,6 +14,7 @@ function workspacePath(id: string): string {
 const SAMPLE_WORKSPACE: Workspace = {
   id: "week-1-circle-of-fifths",
   name: "Week 1 — Circle of Fifths",
+  gridSettings: DEFAULT_GRID_SETTINGS,
   layout: [
     {
       id: "cof-1",
@@ -64,7 +65,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
 
 export async function createWorkspace(name: string): Promise<Workspace> {
   const id = `${slugify(name)}-${Date.now().toString(36)}`;
-  const workspace: Workspace = { id, name, layout: [] };
+  const workspace: Workspace = { id, name, gridSettings: DEFAULT_GRID_SETTINGS, layout: [] };
   await saveWorkspace(workspace);
   return workspace;
 }
