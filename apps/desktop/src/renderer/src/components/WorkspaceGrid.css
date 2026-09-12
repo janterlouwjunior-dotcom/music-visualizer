@@ -1,0 +1,103 @@
+.workspace-grid {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.workspace-grid__toolbar {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+
+.workspace-grid__picker {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  min-width: 280px;
+}
+
+.workspace-grid__picker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-grid__picker-item:hover {
+  background: var(--color-bg-sunken);
+}
+
+.workspace-grid__picker-icon {
+  font-size: var(--font-size-lg);
+}
+
+.workspace-grid__picker-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-grid__picker-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.workspace-grid__picker-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.workspace-grid__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  color: var(--color-text-faint);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.viz-card__drag-handle {
+  cursor: grab;
+}
+
+.viz-card__remove {
+  background: transparent;
+  border: none;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.viz-card__remove:hover {
+  color: var(--color-danger);
+  background: var(--color-bg-sunken);
+}
+
+.viz-card__unknown {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-sm);
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-accent) !important;
+  opacity: 0.15;
+  border-radius: var(--radius-lg);
+}

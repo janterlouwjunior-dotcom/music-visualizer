@@ -1,0 +1,106 @@
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-sunken);
+  border-right: 1px solid var(--color-border);
+  z-index: var(--z-sidebar);
+}
+
+.sidebar__header {
+  padding: var(--space-4) var(--space-3) var(--space-3);
+}
+
+.sidebar__brand {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.sidebar__section-label {
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+}
+
+.sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-2);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-1);
+}
+
+.sidebar__item--active {
+  background: var(--color-bg-raised);
+}
+
+.sidebar__item-button {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.sidebar__item--active .sidebar__item-button {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.sidebar__item-button:hover {
+  color: var(--color-text);
+}
+
+.sidebar__item-actions {
+  display: flex;
+  gap: 2px;
+  padding-right: var(--space-1);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar__item:hover .sidebar__item-actions {
+  opacity: 1;
+}
+
+.sidebar__icon-button {
+  background: transparent;
+  border: none;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.sidebar__icon-button:hover {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.sidebar__empty {
+  padding: var(--space-3);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-sm);
+}
+
+.sidebar__footer {
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}

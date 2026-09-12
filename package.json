@@ -1,0 +1,16 @@
+{
+  "name": "music-theory-viz",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @music-theory-viz/desktop",
+    "build": "npm run build -w @music-theory-viz/desktop",
+    "build:win": "npm run build:win -w @music-theory-viz/desktop",
+    "build:mac": "npm run build:mac -w @music-theory-viz/desktop",
+    "typecheck": "npm run typecheck -w @music-theory-viz/desktop"
+  }
+}
