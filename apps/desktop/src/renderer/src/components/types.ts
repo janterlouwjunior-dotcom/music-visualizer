@@ -1,11 +1,24 @@
 import type { ComponentType } from "react";
 import type { MidiNoteEvent } from "../../../shared/midi";
 
+export type ConfigFieldType =
+  | "select"
+  | "boolean"
+  | "text"
+  | "number"
+  | "color"
+  | "midiInputDevice"
+  | "midiOutputDevice"
+  | "midiInputChannel"
+  | "midiOutputChannel";
+
 export interface ConfigFieldSchema {
   key: string;
   label: string;
-  type: "select" | "boolean" | "text" | "number";
+  type: ConfigFieldType;
+  /** Static options, for type "select" only — device/channel fields source their own options. */
   options?: { value: string; label: string }[];
+  /** For type "number" only. */
   min?: number;
   max?: number;
 }

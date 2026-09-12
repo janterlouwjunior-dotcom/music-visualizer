@@ -1,0 +1,44 @@
+.mtv-color-wheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mtv-color-wheel__wheel {
+  position: relative;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  cursor: crosshair;
+  /* Radial white->transparent fade composited over the hue ring desaturates
+     toward the center via plain alpha blending — no blend-mode needed.
+     `from -90deg` aligns 0deg with the east/3-o'clock axis, matching the
+     atan2(dy, dx) convention used for pointer math in ColorWheel.tsx. */
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%),
+    conic-gradient(
+      from -90deg,
+      hsl(0, 100%, 50%),
+      hsl(60, 100%, 50%),
+      hsl(120, 100%, 50%),
+      hsl(180, 100%, 50%),
+      hsl(240, 100%, 50%),
+      hsl(300, 100%, 50%),
+      hsl(360, 100%, 50%)
+    );
+}
+
+.mtv-color-wheel__knob {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.mtv-color-wheel__lightness {
+  width: 100%;
+}

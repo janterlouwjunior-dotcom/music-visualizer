@@ -41,29 +41,3 @@
   font-weight: var(--font-weight-medium);
   pointer-events: none;
 }
-
-.cof__controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.cof__field {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.cof__field select {
-  background: var(--color-bg-sunken);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-}
-
-.cof__field--checkbox {
-  gap: var(--space-1);
-}

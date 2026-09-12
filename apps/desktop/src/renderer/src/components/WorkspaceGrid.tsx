@@ -8,6 +8,7 @@ import {
   type Workspace
 } from "../../../shared/workspace";
 import { getVisualizationDefinition, listVisualizationDefinitions } from "./registry";
+import { ComponentSettingsFields } from "./ComponentSettingsFields";
 import { midiService } from "../midi/midiService";
 import "./WorkspaceGrid.css";
 
@@ -28,6 +29,7 @@ interface WorkspaceGridProps {
 export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openComponentSettingsFor, setOpenComponentSettingsFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editable) {
@@ -35,6 +37,10 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
       setSettingsOpen(false);
     }
   }, [editable]);
+
+  useEffect(() => {
+    setOpenComponentSettingsFor(null);
+  }, [workspace.id]);
 
   const gridSettings: GridSettings = workspace.gridSettings ?? DEFAULT_GRID_SETTINGS;
 
@@ -213,15 +219,39 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
                     </span>
                   }
                   actions={
-                    editable ? (
-                      <button
-                        className="viz-card__remove"
-                        onClick={() => removeInstance(item.id)}
-                        title="Remove"
-                      >
-                        ✕
-                      </button>
-                    ) : undefined
+                    <>
+                      {definition && definition.configSchema.length > 0 && (
+                        <div className="viz-card__settings-anchor">
+                          <button
+                            className="viz-card__icon-button"
+                            title="Component settings"
+                            onClick={() =>
+                              setOpenComponentSettingsFor((cur) => (cur === item.id ? null : item.id))
+                            }
+                          >
+                            ⚙
+                          </button>
+                          {openComponentSettingsFor === item.id && (
+                            <div className="component-settings-popover">
+                              <ComponentSettingsFields
+                                schema={definition.configSchema}
+                                config={item.props ?? definition.defaultProps}
+                                onConfigChange={(partial) => updateInstanceProps(item.id, partial)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {editable && (
+                        <button
+                          className="viz-card__icon-button viz-card__remove"
+                          onClick={() => removeInstance(item.id)}
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </>
                   }
                 >
                   {Component && definition ? (

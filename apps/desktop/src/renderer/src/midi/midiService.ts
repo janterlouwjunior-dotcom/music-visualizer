@@ -60,11 +60,11 @@ class MidiService {
   private attachAll(): void {
     if (!this.access) return;
     for (const input of this.access.inputs.values()) {
-      input.onmidimessage = (event) => this.handleMessage(event);
+      input.onmidimessage = (event) => this.handleMessage(event, input.id);
     }
   }
 
-  private handleMessage(event: MIDIMessageEvent): void {
+  private handleMessage(event: MIDIMessageEvent, portId: string): void {
     const data = event.data;
     if (!data || data.length < 3) return;
     const [statusByte, note, velocity] = data;
@@ -72,9 +72,9 @@ class MidiService {
     const channel = statusByte & 0x0f;
 
     if (command === 0x90 && velocity > 0) {
-      this.dispatch({ type: "noteon", note, velocity, channel, source: "device" });
+      this.dispatch({ type: "noteon", note, velocity, channel, source: "device", portId });
     } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      this.dispatch({ type: "noteoff", note, velocity, channel, source: "device" });
+      this.dispatch({ type: "noteoff", note, velocity, channel, source: "device", portId });
     }
   }
 

@@ -24,17 +24,38 @@ First working prototype. What exists:
   field has focus, so normal tabbing between fields still works). Edit mode is
   the full authoring experience; Play mode hides the sidebar and all layout
   chrome (add/remove, drag, resize, grid settings) for distraction-free use in
-  front of a class — the visualizations' own interactive controls (e.g. Circle
-  of Fifths' key selector and MIDI listening) stay live in both modes.
+  front of a class — each component's own settings gear (see below) stays live
+  in both modes, since that's the instrument, not the layout.
+- **Per-component settings**: every placed component gets a ⚙ icon on its card
+  (`components/ComponentSettingsFields.tsx`), opening a popover generated
+  entirely from that component's `configSchema` — components declare fields,
+  they never build their own settings UI. Field types: `select`, `boolean`,
+  `text`, `number` (with min/max), `color` (a hand-built hue/saturation wheel
+  + lightness slider, `@music-theory-viz/ui-kit`'s `ColorWheel`), and four
+  MIDI-aware types — `midiInputDevice`/`midiOutputDevice` (dropdowns sourced
+  live from the global Settings page below) and `midiInputChannel` (1-16 plus
+  "All")/`midiOutputChannel` (1-16). Circle of Fifths' key/MIDI-listen controls
+  now live here too, replacing its old inline UI.
 - A grid-based workspace layout (`react-grid-layout`) that persists to JSON
   files under the app's `userData/workspaces` folder — components can be
   dragged and resized, and changes autosave.
 - A component registry (`src/renderer/src/components/registry.ts`) — the
   extension point for adding new visualizations without touching existing code.
-- One real visualization proving the full component contract: **Circle of
-  Fifths** (`components/visualizations/CircleOfFifths.tsx`) — configurable
-  highlighted key, and bidirectional MIDI (highlights on incoming notes,
-  clicking a segment sends a note out).
+- Two visualizations:
+  - **Circle of Fifths** (`components/visualizations/CircleOfFifths.tsx`) —
+    configurable highlighted key, and bidirectional MIDI (highlights on
+    incoming notes, clicking a segment sends a note out).
+  - **MIDI Keyboard** (`components/visualizations/MidiKeyboard.tsx`) — a
+    playable piano with a configurable key count (24-88; the top key is
+    always C8, keys are removed from the bottom as the count shrinks), an
+    accent color for highlighted keys, and named-device + channel filtering
+    for both input and output (see per-component settings above). Incoming
+    notes are matched against the configured input device's real Web MIDI
+    port id and channel (`shared/midi.ts`'s `MidiNoteEvent.portId`) — so two
+    keyboards on the same workspace can each listen to a different physical
+    controller. Clicking a key sends a note out on the configured output
+    channel; the output *device* selector doesn't change routing yet, since
+    virtual outputs are still placeholders (see above).
 - A renderer-side MIDI service (`midi/midiService.ts`) built on the **Web MIDI
   API** (native to Chromium, no native Node module / build toolchain needed).
   It talks to whatever real MIDI devices are already connected. It does **not**

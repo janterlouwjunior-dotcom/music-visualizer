@@ -47,11 +47,7 @@ function labelPosition(index: number): { x: number; y: number } {
   return { x: CENTER + r * Math.cos(midAngle), y: CENTER + r * Math.sin(midAngle) };
 }
 
-export function CircleOfFifths({
-  config,
-  onConfigChange,
-  midi
-}: VisualizationProps<CircleOfFifthsConfig>) {
+export function CircleOfFifths({ config, midi }: VisualizationProps<CircleOfFifthsConfig>) {
   const [midiActive, setMidiActive] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -120,29 +116,6 @@ export function CircleOfFifths({
           );
         })}
       </svg>
-      <div className="cof__controls">
-        <label className="cof__field">
-          Key
-          <select
-            value={config.highlightKey}
-            onChange={(e) => onConfigChange({ highlightKey: e.target.value })}
-          >
-            {SEGMENTS.map((s) => (
-              <option key={s.name} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="cof__field cof__field--checkbox">
-          <input
-            type="checkbox"
-            checked={config.listenForMidi}
-            onChange={(e) => onConfigChange({ listenForMidi: e.target.checked })}
-          />
-          Listen for MIDI
-        </label>
-      </div>
     </div>
   );
 }

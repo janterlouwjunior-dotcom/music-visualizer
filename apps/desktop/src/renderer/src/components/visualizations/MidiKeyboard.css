@@ -1,0 +1,35 @@
+.midi-keyboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.midi-keyboard__svg {
+  height: 100%;
+  max-height: 160px;
+}
+
+.midi-keyboard__key {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+  cursor: pointer;
+  transition: fill var(--duration-fast) var(--ease-standard);
+}
+
+/* Piano keys are rendered as a real piano's black-and-white, independent of
+   the app's own dark theme — this represents a physical instrument. */
+.midi-keyboard__key--white {
+  fill: #f5f5f7;
+}
+
+.midi-keyboard__key--black {
+  fill: #1a1a1e;
+}
+
+.midi-keyboard__key--active {
+  fill: var(--accent-color, var(--color-accent));
+}

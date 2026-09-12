@@ -7,6 +7,9 @@ export interface MidiNoteEvent {
   type: "noteon" | "noteoff";
   note: number;
   velocity: number;
+  /** 0-15, raw MIDI channel. */
   channel: number;
   source: "device" | "internal";
+  /** Web MIDI input port id that raised this event; undefined for internal/sent events. */
+  portId?: string;
 }
