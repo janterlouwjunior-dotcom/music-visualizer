@@ -41,6 +41,18 @@ First working prototype. What exists:
   yet create its own virtual MIDI port — that's a distribution-phase feature
   (virtualMIDI SDK on Windows, CoreMIDI on Mac), not needed to prove the
   component contract.
+- A global **Settings** page (gear icon, top of the sidebar; only reachable in
+  Edit mode) for managing named MIDI devices, stored in
+  `userData/midi-settings.json`:
+  - **Input devices**: name + pick from a live-updating dropdown of currently
+    connected Web MIDI inputs. Fully functional today.
+  - **Virtual output devices**: name only. These are reserved placeholders —
+    Web MIDI can send to ports that already exist but can't create a new one
+    other apps (Bitwig included) would see, so entries here aren't backed by a
+    real port yet. That needs a native MIDI module and, on Windows, bundling a
+    virtual-port driver SDK (see the MIDI section above) — deliberately not
+    done yet to avoid taking on a native-module/Electron-ABI build risk
+    without you at the machine to test it.
 - `electron-builder` + `electron-updater` wired in from the start, targeting
   NSIS (Windows) and dmg (macOS), with a GitHub Releases update provider.
 

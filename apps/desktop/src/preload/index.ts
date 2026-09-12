@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../shared/workspace";
+import type { MidiInputDevice, MidiOutputDevice, MidiSettings } from "../shared/midiSettings";
 
 export interface UpdaterStatus {
   status: "available" | "up-to-date" | "downloading" | "ready" | "error";
@@ -23,6 +24,15 @@ const api = {
     list: (): Promise<WorkspaceFolder[]> => ipcRenderer.invoke("folders:list"),
     create: (name: string): Promise<WorkspaceFolder> => ipcRenderer.invoke("folders:create", name),
     delete: (id: string): Promise<void> => ipcRenderer.invoke("folders:delete", id)
+  },
+  midiSettings: {
+    get: (): Promise<MidiSettings> => ipcRenderer.invoke("midiSettings:get"),
+    addInput: (name: string, sourceId: string): Promise<MidiInputDevice> =>
+      ipcRenderer.invoke("midiSettings:addInput", name, sourceId),
+    deleteInput: (id: string): Promise<void> => ipcRenderer.invoke("midiSettings:deleteInput", id),
+    addOutput: (name: string): Promise<MidiOutputDevice> =>
+      ipcRenderer.invoke("midiSettings:addOutput", name),
+    deleteOutput: (id: string): Promise<void> => ipcRenderer.invoke("midiSettings:deleteOutput", id)
   },
   updater: {
     install: (): Promise<void> => ipcRenderer.invoke("updater:install"),

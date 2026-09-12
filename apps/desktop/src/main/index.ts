@@ -10,6 +10,13 @@ import {
   setWorkspaceFolder
 } from "./workspaces";
 import { createFolder, deleteFolder, listFolders } from "./folders";
+import {
+  addMidiInput,
+  addMidiOutput,
+  deleteMidiInput,
+  deleteMidiOutput,
+  getMidiSettings
+} from "./midiSettings";
 import { initAutoUpdater, quitAndInstallUpdate } from "./updater";
 import type { Workspace } from "../shared/workspace";
 
@@ -71,6 +78,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle("folders:list", () => listFolders());
   ipcMain.handle("folders:create", (_event, name: string) => createFolder(name));
   ipcMain.handle("folders:delete", (_event, id: string) => deleteFolder(id));
+  ipcMain.handle("midiSettings:get", () => getMidiSettings());
+  ipcMain.handle("midiSettings:addInput", (_event, name: string, sourceId: string) =>
+    addMidiInput(name, sourceId)
+  );
+  ipcMain.handle("midiSettings:deleteInput", (_event, id: string) => deleteMidiInput(id));
+  ipcMain.handle("midiSettings:addOutput", (_event, name: string) => addMidiOutput(name));
+  ipcMain.handle("midiSettings:deleteOutput", (_event, id: string) => deleteMidiOutput(id));
   ipcMain.handle("updater:install", () => quitAndInstallUpdate());
 }
 

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceGrid } from "./components/WorkspaceGrid";
+import { SettingsPage } from "./components/SettingsPage";
 import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../../shared/workspace";
 import { midiService } from "./midi/midiService";
 import "./App.css";
 
 type Mode = "edit" | "play";
+type View = "workspace" | "settings";
 
 export function App() {
   const [summaries, setSummaries] = useState<WorkspaceSummary[]>([]);
@@ -13,6 +15,7 @@ export function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>("Initializing MIDI…");
   const [mode, setMode] = useState<Mode>("edit");
+  const [view, setView] = useState<View>("workspace");
   const saveTimer = useRef<number | null>(null);
 
   const refreshSummaries = useCallback(async (): Promise<WorkspaceSummary[]> => {
@@ -58,6 +61,8 @@ export function App() {
   // text/number fields (and normal Tab-to-next-field behavior) keep working.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
+      if (view !== "workspace") return;
+
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       const isFormControl =
@@ -89,7 +94,7 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeWorkspace, summaries]);
+  }, [activeWorkspace, summaries, view]);
 
   async function handleSelectWorkspace(id: string): Promise<void> {
     const workspace = await window.api.workspaces.load(id);
@@ -147,6 +152,14 @@ export function App() {
     }, 400);
   }
 
+  if (view === "settings") {
+    return (
+      <div className="app">
+        <SettingsPage onClose={() => setView("workspace")} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {mode === "edit" && (
@@ -161,6 +174,7 @@ export function App() {
           onCreateFolder={handleCreateFolder}
           onDeleteFolder={handleDeleteFolder}
           onMoveToFolder={handleMoveToFolder}
+          onOpenSettings={() => setView("settings")}
         />
       )}
       <main className="app__main">

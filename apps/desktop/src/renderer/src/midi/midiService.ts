@@ -23,9 +23,15 @@ export interface MidiDeviceInfo {
   outputs: string[];
 }
 
+export interface MidiPortInfo {
+  id: string;
+  name: string;
+}
+
 class MidiService {
   private access: MIDIAccess | null = null;
   private handlers = new Set<Handler>();
+  private deviceChangeHandlers = new Set<() => void>();
   private initPromise: Promise<MidiInitResult> | null = null;
 
   async init(): Promise<MidiInitResult> {
@@ -38,7 +44,10 @@ class MidiService {
       try {
         this.access = await navigator.requestMIDIAccess();
         this.attachAll();
-        this.access.onstatechange = () => this.attachAll();
+        this.access.onstatechange = () => {
+          this.attachAll();
+          for (const handler of this.deviceChangeHandlers) handler();
+        };
         return { ok: true };
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : String(err) };
@@ -99,6 +108,21 @@ class MidiService {
       inputs: Array.from(this.access.inputs.values()).map((i) => i.name ?? "Unnamed input"),
       outputs: Array.from(this.access.outputs.values()).map((o) => o.name ?? "Unnamed output")
     };
+  }
+
+  /** Connected MIDI inputs as {id, name} pairs, for device-picker dropdowns. */
+  listInputs(): MidiPortInfo[] {
+    if (!this.access) return [];
+    return Array.from(this.access.inputs.values()).map((i) => ({
+      id: i.id,
+      name: i.name ?? "Unnamed input"
+    }));
+  }
+
+  /** Notified whenever a MIDI device is plugged in or unplugged. */
+  onDeviceChange(handler: () => void): () => void {
+    this.deviceChangeHandlers.add(handler);
+    return () => this.deviceChangeHandlers.delete(handler);
   }
 }
 

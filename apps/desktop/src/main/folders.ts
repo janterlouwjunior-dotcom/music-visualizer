@@ -3,6 +3,9 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import type { WorkspaceFolder } from "../shared/workspace";
 import { listWorkspaces, loadWorkspace, saveWorkspace, slugify } from "./workspaces";
+import { createSerialQueue } from "./serialQueue";
+
+const runSerially = createSerialQueue();
 
 function foldersPath(): string {
   return join(app.getPath("userData"), "folders.json");
@@ -28,18 +31,23 @@ export async function listFolders(): Promise<WorkspaceFolder[]> {
 }
 
 export async function createFolder(name: string): Promise<WorkspaceFolder> {
-  const folders = await readFolders();
-  const folder: WorkspaceFolder = { id: `${slugify(name)}-${Date.now().toString(36)}`, name };
-  folders.push(folder);
-  await writeFolders(folders);
-  return folder;
+  return runSerially(async () => {
+    const folders = await readFolders();
+    const folder: WorkspaceFolder = { id: `${slugify(name)}-${Date.now().toString(36)}`, name };
+    folders.push(folder);
+    await writeFolders(folders);
+    return folder;
+  });
 }
 
 export async function deleteFolder(id: string): Promise<void> {
-  const folders = (await readFolders()).filter((f) => f.id !== id);
-  await writeFolders(folders);
+  await runSerially(async () => {
+    const folders = (await readFolders()).filter((f) => f.id !== id);
+    await writeFolders(folders);
+  });
 
-  // Ungroup any workspaces left pointing at the deleted folder.
+  // Ungroup any workspaces left pointing at the deleted folder. Each workspace
+  // lives in its own file, so this doesn't need the folders.json queue.
   const summaries = await listWorkspaces();
   for (const summary of summaries) {
     if (summary.folderId === id) {

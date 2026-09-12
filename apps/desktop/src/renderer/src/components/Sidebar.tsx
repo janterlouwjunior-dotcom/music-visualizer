@@ -14,6 +14,7 @@ interface SidebarProps {
   onCreateFolder: () => void;
   onDeleteFolder: (id: string) => void;
   onMoveToFolder: (workspaceId: string, folderId: string | null) => void;
+  onOpenSettings: () => void;
 }
 
 export function Sidebar({
@@ -26,7 +27,8 @@ export function Sidebar({
   onDelete,
   onCreateFolder,
   onDeleteFolder,
-  onMoveToFolder
+  onMoveToFolder,
+  onOpenSettings
 }: SidebarProps) {
   const { byFolder, ungrouped } = useMemo(() => {
     const byFolder = new Map<string, WorkspaceSummary[]>();
@@ -94,6 +96,9 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar__header">
         <span className="sidebar__brand">Music Theory Visualizer</span>
+        <button className="sidebar__icon-button" title="Settings" onClick={onOpenSettings}>
+          ⚙
+        </button>
       </div>
       <div className="sidebar__section-label">Workspaces</div>
       <ul className="sidebar__list">
