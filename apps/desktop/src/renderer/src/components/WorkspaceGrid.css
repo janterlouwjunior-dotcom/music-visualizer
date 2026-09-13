@@ -140,6 +140,18 @@
   overflow: visible;
 }
 
+/* Play mode is meant to read as a clean performance view, not a grid of
+   boxes — keep the border in the layout (avoids a resize flicker switching
+   modes) but make it transparent instead of removing it. */
+.viz-card--play.mtv-panel {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.viz-card--play .mtv-panel__header {
+  border-bottom-color: transparent;
+}
+
 .viz-card__settings-anchor {
   position: relative;
 }

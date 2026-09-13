@@ -46,7 +46,10 @@ function buildKeys(lowNote: number, highNote: number): { keys: KeyInfo[]; left: 
       keys.push({ note, isWhite: true, x: whiteIndex });
       whiteIndex += 1;
     } else {
-      keys.push({ note, isWhite: false, x: whiteIndex - 0.5 });
+      // Centered on the boundary shared by the white key just placed and the
+      // one about to follow — not `whiteIndex - 0.5`, which centers it inside
+      // the preceding white key instead of between the two.
+      keys.push({ note, isWhite: false, x: whiteIndex });
     }
   }
 

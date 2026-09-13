@@ -241,7 +241,7 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
             return (
               <div key={item.id}>
                 <Panel
-                  className="viz-card"
+                  className={`viz-card${editable ? "" : " viz-card--play"}`}
                   title={
                     <span className={editable ? "viz-card__drag-handle" : undefined}>
                       {definition?.icon} {definition?.name ?? item.component}
