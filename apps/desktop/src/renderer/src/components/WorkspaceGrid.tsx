@@ -58,12 +58,29 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
 
   const handleLayoutChange = useCallback(
     (nextLayout: Layout[]) => {
+      // react-grid-layout fires onLayoutChange continuously during a drag/resize,
+      // not just once at the end. Every call here used to unconditionally build
+      // new objects and call onChange, which produces a new `layout` array prop
+      // on the next render, which react-grid-layout treats as an external change
+      // and reacts to again — a feedback loop that pegs the render thread and
+      // freezes the window. Bailing out when nothing actually moved (both at the
+      // per-item level, preserving reference equality, and overall) breaks it.
+      let changed = false;
       const nextItems: ComponentInstance[] = workspace.layout.map((item) => {
         const positioned = nextLayout.find((l) => l.i === item.id);
-        return positioned
-          ? { ...item, x: positioned.x, y: positioned.y, w: positioned.w, h: positioned.h }
-          : item;
+        if (!positioned) return item;
+        if (
+          positioned.x === item.x &&
+          positioned.y === item.y &&
+          positioned.w === item.w &&
+          positioned.h === item.h
+        ) {
+          return item;
+        }
+        changed = true;
+        return { ...item, x: positioned.x, y: positioned.y, w: positioned.w, h: positioned.h };
       });
+      if (!changed) return;
       onChange({ ...workspace, layout: nextItems });
     },
     [workspace, onChange]
