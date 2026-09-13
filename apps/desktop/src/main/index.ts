@@ -20,6 +20,16 @@ import {
 import { initAutoUpdater, quitAndInstallUpdate } from "./updater";
 import type { Workspace } from "../shared/workspace";
 
+// Without this, launching via `electron .` (which the dev shortcut does) reads
+// the scoped package name "@music-theory-viz/desktop" as the app name, and
+// Electron creates userData at .../Roaming/@music-theory-viz/desktop — a
+// literal "/" in a path segment, silently split into two nested folders.
+// Setting this explicitly also keeps userData consistent between the dev
+// shortcut, `electron out/main/index.js`, and the future packaged app, which
+// otherwise use different default-name heuristics and would each get their
+// own separate, siloed userData directory.
+app.setName("Music Theory Visualizer");
+
 function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -42,6 +52,16 @@ function createMainWindow(): BrowserWindow {
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: "deny" };
+  });
+
+  // A renderer crash otherwise fails completely silently: the main process
+  // survives, the window stays open, but it just goes blank/unresponsive
+  // forever. Log the reason and reload so the window recovers on its own.
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("Renderer process gone:", details.reason, details.exitCode);
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.reload();
+    }
   });
 
   if (is_dev()) {
@@ -99,6 +119,10 @@ app.whenReady().then(() => {
       createMainWindow();
     }
   });
+});
+
+app.on("child-process-gone", (_event, details) => {
+  console.error("Child process gone:", details.type, details.reason, details.exitCode);
 });
 
 app.on("window-all-closed", () => {
