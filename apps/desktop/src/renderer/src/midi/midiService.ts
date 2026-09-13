@@ -28,22 +28,6 @@ export interface MidiPortInfo {
   name: string;
 }
 
-// navigator.requestMIDIAccess() deadlocks the ENTIRE renderer (not just the
-// MIDI call) roughly 28-30 seconds after being invoked, on at least this
-// machine — confirmed by isolated testing: a 1s heartbeat interval, all click
-// handling, and even Electron's own webContents "unresponsive" hang detector
-// all stop dead at that point, every run, only when this call is made. Wrapping
-// it in a timeout does NOT help: the timeout only stops OUR code from awaiting
-// the promise, the underlying OS-level device enumeration keeps running
-// in Chromium and still deadlocks the render thread later regardless. With no
-// freeze at all (95+s clean) when this call is skipped entirely, the hang is
-// coming from Chromium's/Windows' MIDI device enumeration itself, most likely
-// tripped up by one of the many virtual-MIDI-port-creating apps installed on
-// this machine (loopMIDI, Bome MIDI Translator, a DAW's MIDI bridge, etc.).
-// Disabled until that's tracked down — flip this back on to re-test once a
-// candidate driver has been removed/disabled.
-const MIDI_ENABLED = false;
-
 class MidiService {
   private access: MIDIAccess | null = null;
   private handlers = new Set<Handler>();
@@ -54,12 +38,6 @@ class MidiService {
     if (this.initPromise) return this.initPromise;
 
     this.initPromise = (async () => {
-      if (!MIDI_ENABLED) {
-        return {
-          ok: false,
-          reason: "MIDI disabled on this machine — see the MIDI_ENABLED comment in midiService.ts"
-        };
-      }
       if (typeof navigator.requestMIDIAccess !== "function") {
         return { ok: false, reason: "Web MIDI API not available in this runtime" };
       }
