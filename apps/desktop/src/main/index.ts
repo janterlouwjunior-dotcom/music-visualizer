@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "path";
 import {
   createWorkspace,
@@ -18,8 +18,10 @@ import {
   deleteMidiOutput,
   getMidiSettings
 } from "./midiSettings";
+import { nativeMidi } from "./nativeMidi";
 import { initAutoUpdater, quitAndInstallUpdate } from "./updater";
 import type { Workspace } from "../shared/workspace";
+import type { MidiNoteEvent } from "../shared/midi";
 
 // Without this, launching via `electron .` (which the dev shortcut does) reads
 // the scoped package name "@music-theory-viz/desktop" as the app name, and
@@ -55,13 +57,36 @@ function createMainWindow(): BrowserWindow {
     return { action: "deny" };
   });
 
+  nativeMidi.onNote((event: MidiNoteEvent) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("midi:note", event);
+  });
+  nativeMidi.onDeviceChange(() => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("midi:devicechange");
+  });
+
+  // Gives the native MIDI worker process a chance to close its ports before
+  // the app actually quits — entirely within the main process, independent
+  // of renderer health, unlike the browser-based Web MIDI approach this
+  // replaced (see the comment on MidiNoteEvent in shared/midi.ts). A port
+  // left open when the process just dies has, on at least this machine,
+  // sometimes left the underlying driver in a state that hangs the *next*
+  // launch's MIDI startup.
+  let readyToClose = false;
+  mainWindow.on("close", (event) => {
+    if (readyToClose) return;
+    event.preventDefault();
+    nativeMidi.shutdown().finally(() => {
+      readyToClose = true;
+      mainWindow.destroy();
+    });
+  });
+
   // Recovers from a crashed or hung renderer by reloading — but only a
   // few times per short window. A cause that clears itself (a one-off GPU
   // blip, a transient OS hiccup) gets fixed by the reload. A cause that
-  // doesn't clear itself (e.g. a MIDI driver stuck at the OS level — see
-  // requestMIDIAccess() in midiService.ts) would otherwise retrigger the
-  // same hang right after every reload, forever, silently: reloading looks
-  // like recovery but the window never actually becomes usable again.
+  // doesn't clear itself would otherwise retrigger the same hang right
+  // after every reload, forever, silently: reloading looks like recovery
+  // but the window never actually becomes usable again.
   const MAX_RECOVERY_ATTEMPTS = 3;
   const RECOVERY_WINDOW_MS = 2 * 60 * 1000;
   let recoveryAttempts = 0;
@@ -141,22 +166,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle("midiSettings:addOutput", (_event, name: string) => addMidiOutput(name));
   ipcMain.handle("midiSettings:deleteOutput", (_event, id: string) => deleteMidiOutput(id));
   ipcMain.handle("updater:install", () => quitAndInstallUpdate());
+
+  ipcMain.handle("midi:init", () => nativeMidi.start());
+  ipcMain.handle("midi:getDeviceInfo", () => nativeMidi.getDeviceInfo());
+  ipcMain.on("midi:send", (_event, midiEvent: Omit<MidiNoteEvent, "source">) =>
+    nativeMidi.sendNote(midiEvent)
+  );
 }
 
 app.whenReady().then(() => {
-  // Without an explicit handler, Electron falls through to Chromium's native
-  // permission UI for navigator.requestMIDIAccess() — a bubble Electron has
-  // nowhere to anchor, since none of our windows have the omnibox Chrome
-  // normally attaches it to. The request (and the app) hangs waiting for a
-  // response that can never arrive. Auto-granting the one permission this
-  // app actually uses avoids that native prompt entirely.
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === "midi" || permission === "midiSysex");
-  });
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === "midi" || permission === "midiSysex";
-  });
-
   registerIpcHandlers();
 
   const mainWindow = createMainWindow();

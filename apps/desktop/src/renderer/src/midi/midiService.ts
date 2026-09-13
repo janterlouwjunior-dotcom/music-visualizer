@@ -1,27 +1,21 @@
-import type { MidiNoteEvent } from "../../../shared/midi";
+import type { MidiDeviceInfo, MidiInitResult, MidiNoteEvent } from "../../../shared/midi";
 
 /**
- * Thin wrapper around the Web MIDI API (supported natively by Chromium, so no
- * native Node module / node-gyp toolchain is needed for the prototype).
- * TypeScript's DOM lib already ships MIDIAccess/MIDIInput/MIDIOutput types.
+ * Thin wrapper around the main process's native MIDI service (see
+ * main/nativeMidi.ts and main/midiWorker.ts) — deliberately NOT the
+ * browser's Web MIDI API. See the comment on MidiNoteEvent in shared/midi.ts
+ * for why: navigator.requestMIDIAccess() deadlocks the entire renderer on at
+ * least one real machine this app has run on, reproduced even in a bare
+ * Electron app with none of this app's code involved.
  *
- * This talks to whatever real MIDI devices are already connected — it does not
- * yet create a virtual MIDI port of its own. Acting as a virtual device for
- * Bitwig routing (virtualMIDI SDK on Windows, CoreMIDI on Mac) is a
- * distribution-phase feature, not required to prove the onMidiNote contract.
+ * Keeps the exact same public shape the old Web-MIDI-backed version had
+ * (init/subscribe/send/getDeviceInfo/listInputs/onDeviceChange) so nothing
+ * elsewhere in the renderer needed to change when the transport did.
  */
 
 type Handler = (event: MidiNoteEvent) => void;
 
-export interface MidiInitResult {
-  ok: boolean;
-  reason?: string;
-}
-
-export interface MidiDeviceInfo {
-  inputs: string[];
-  outputs: string[];
-}
+export type { MidiInitResult, MidiDeviceInfo };
 
 export interface MidiPortInfo {
   id: string;
@@ -29,53 +23,38 @@ export interface MidiPortInfo {
 }
 
 class MidiService {
-  private access: MIDIAccess | null = null;
   private handlers = new Set<Handler>();
   private deviceChangeHandlers = new Set<() => void>();
+  private deviceInfo: MidiDeviceInfo = { inputs: [], outputs: [] };
   private initPromise: Promise<MidiInitResult> | null = null;
+  private wired = false;
+
+  private wireBridgeOnce(): void {
+    if (this.wired) return;
+    this.wired = true;
+
+    window.api.midi.onNote((event) => this.dispatch(event));
+    window.api.midi.onDeviceChange(() => {
+      window.api.midi.getDeviceInfo().then((info) => {
+        this.deviceInfo = info;
+        for (const handler of this.deviceChangeHandlers) handler();
+      });
+    });
+  }
 
   async init(): Promise<MidiInitResult> {
     if (this.initPromise) return this.initPromise;
+    this.wireBridgeOnce();
 
     this.initPromise = (async () => {
-      if (typeof navigator.requestMIDIAccess !== "function") {
-        return { ok: false, reason: "Web MIDI API not available in this runtime" };
+      const result = await window.api.midi.init();
+      if (result.ok) {
+        this.deviceInfo = await window.api.midi.getDeviceInfo();
       }
-      try {
-        this.access = await navigator.requestMIDIAccess();
-        this.attachAll();
-        this.access.onstatechange = () => {
-          this.attachAll();
-          for (const handler of this.deviceChangeHandlers) handler();
-        };
-        return { ok: true };
-      } catch (err) {
-        return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-      }
+      return result;
     })();
 
     return this.initPromise;
-  }
-
-  private attachAll(): void {
-    if (!this.access) return;
-    for (const input of this.access.inputs.values()) {
-      input.onmidimessage = (event) => this.handleMessage(event, input.id);
-    }
-  }
-
-  private handleMessage(event: MIDIMessageEvent, portId: string): void {
-    const data = event.data;
-    if (!data || data.length < 3) return;
-    const [statusByte, note, velocity] = data;
-    const command = statusByte & 0xf0;
-    const channel = statusByte & 0x0f;
-
-    if (command === 0x90 && velocity > 0) {
-      this.dispatch({ type: "noteon", note, velocity, channel, source: "device", portId });
-    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      this.dispatch({ type: "noteoff", note, velocity, channel, source: "device", portId });
-    }
   }
 
   private dispatch(event: MidiNoteEvent): void {
@@ -90,33 +69,17 @@ class MidiService {
 
   /** Emit a note out to all connected MIDI outputs (e.g. a track pointed at Bitwig), and echo locally. */
   send(event: Omit<MidiNoteEvent, "source">): void {
-    const status = (event.type === "noteon" ? 0x90 : 0x80) | (event.channel & 0x0f);
-    const bytes = [status, event.note & 0x7f, event.velocity & 0x7f];
-
-    if (this.access) {
-      for (const output of this.access.outputs.values()) {
-        output.send(bytes);
-      }
-    }
-
+    window.api.midi.send(event);
     this.dispatch({ ...event, source: "internal" });
   }
 
   getDeviceInfo(): MidiDeviceInfo {
-    if (!this.access) return { inputs: [], outputs: [] };
-    return {
-      inputs: Array.from(this.access.inputs.values()).map((i) => i.name ?? "Unnamed input"),
-      outputs: Array.from(this.access.outputs.values()).map((o) => o.name ?? "Unnamed output")
-    };
+    return this.deviceInfo;
   }
 
   /** Connected MIDI inputs as {id, name} pairs, for device-picker dropdowns. */
   listInputs(): MidiPortInfo[] {
-    if (!this.access) return [];
-    return Array.from(this.access.inputs.values()).map((i) => ({
-      id: i.id,
-      name: i.name ?? "Unnamed input"
-    }));
+    return this.deviceInfo.inputs.map((name) => ({ id: name, name }));
   }
 
   /** Notified whenever a MIDI device is plugged in or unplugged. */

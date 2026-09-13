@@ -1,7 +1,15 @@
 /**
  * MIDI note event shape used by the component contract's onMidiNote hook.
- * Handled entirely in the renderer via the Web MIDI API (Chromium supports it
- * natively) — no native Node MIDI bindings needed for the prototype.
+ *
+ * Handled by a native MIDI library (@julusian/midi, wrapping RtMidi) running
+ * in its own Electron utility process — NOT the browser's Web MIDI API. On at
+ * least this machine, Chromium's navigator.requestMIDIAccess() deadlocks the
+ * entire renderer process ~30s after being called, reproduced even in a bare
+ * Electron app with no code of ours involved, so it can't be used safely no
+ * matter how it's wrapped on the JS side. Isolating the native library in its
+ * own process means a hang there can only ever affect that one disposable
+ * process — never the UI — and lets the main process apply a hard startup
+ * timeout instead of hoping the call eventually settles.
  */
 export interface MidiNoteEvent {
   type: "noteon" | "noteoff";
@@ -10,8 +18,18 @@ export interface MidiNoteEvent {
   /** 0-15, raw MIDI channel. */
   channel: number;
   source: "device" | "internal";
-  /** Web MIDI input port id that raised this event; undefined for internal/sent events. */
+  /** Name of the input port that raised this event; undefined for internal/sent events. */
   portId?: string;
+}
+
+export interface MidiInitResult {
+  ok: boolean;
+  reason?: string;
+}
+
+export interface MidiDeviceInfo {
+  inputs: string[];
+  outputs: string[];
 }
 
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];

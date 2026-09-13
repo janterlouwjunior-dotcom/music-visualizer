@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../shared/workspace";
 import type { MidiInputDevice, MidiOutputDevice, MidiSettings } from "../shared/midiSettings";
+import type { MidiDeviceInfo, MidiInitResult, MidiNoteEvent } from "../shared/midi";
 import type { UpdaterStatus } from "../shared/updater";
 
 const api = {
@@ -40,6 +41,24 @@ const api = {
         callback(status);
       ipcRenderer.on("updater:status", listener);
       return () => ipcRenderer.removeListener("updater:status", listener);
+    }
+  },
+  midi: {
+    // Runs in an isolated utility process, not the browser's Web MIDI API —
+    // see the comment on MidiNoteEvent in shared/midi.ts for why.
+    init: (): Promise<MidiInitResult> => ipcRenderer.invoke("midi:init"),
+    getDeviceInfo: (): Promise<MidiDeviceInfo> => ipcRenderer.invoke("midi:getDeviceInfo"),
+    send: (event: Omit<MidiNoteEvent, "source">): void => ipcRenderer.send("midi:send", event),
+    onNote: (callback: (event: MidiNoteEvent) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, midiEvent: MidiNoteEvent): void =>
+        callback(midiEvent);
+      ipcRenderer.on("midi:note", listener);
+      return () => ipcRenderer.removeListener("midi:note", listener);
+    },
+    onDeviceChange: (callback: () => void): (() => void) => {
+      const listener = (): void => callback();
+      ipcRenderer.on("midi:devicechange", listener);
+      return () => ipcRenderer.removeListener("midi:devicechange", listener);
     }
   }
 };
