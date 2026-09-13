@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { join } from "path";
 import {
   createWorkspace,
@@ -64,6 +64,17 @@ function createMainWindow(): BrowserWindow {
     }
   });
 
+  // A hung renderer (distinct from a crashed one, above) still shows a
+  // window and passes Electron's own process checks — Task Manager reports
+  // it as "Responding" — while being fully dead to mouse and keyboard input.
+  // Reload gives the same self-healing behavior render-process-gone does.
+  mainWindow.webContents.on("unresponsive", () => {
+    console.error("Renderer became unresponsive; reloading.");
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.reload();
+    }
+  });
+
   if (is_dev()) {
     mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
       console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`);
@@ -109,6 +120,19 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(() => {
+  // Without an explicit handler, Electron falls through to Chromium's native
+  // permission UI for navigator.requestMIDIAccess() — a bubble Electron has
+  // nowhere to anchor, since none of our windows have the omnibox Chrome
+  // normally attaches it to. The request (and the app) hangs waiting for a
+  // response that can never arrive. Auto-granting the one permission this
+  // app actually uses avoids that native prompt entirely.
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "midi" || permission === "midiSysex");
+  });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === "midi" || permission === "midiSysex";
+  });
+
   registerIpcHandlers();
 
   const mainWindow = createMainWindow();
