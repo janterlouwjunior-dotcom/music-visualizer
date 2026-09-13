@@ -141,9 +141,13 @@
 }
 
 /* Play mode is meant to read as a clean performance view, not a grid of
-   boxes — keep the border in the layout (avoids a resize flicker switching
-   modes) but make it transparent instead of removing it. */
+   boxes — the header (icon/name/settings/remove) is edit-only chrome and
+   is omitted entirely in play mode (see WorkspaceGrid.tsx); this drops the
+   panel's own surface too, so all that's left is the raw component content.
+   Border/shadow go transparent rather than being removed outright, so the
+   layout doesn't reflow when toggling modes. */
 .viz-card--play.mtv-panel {
+  background: transparent;
   border-color: transparent;
   box-shadow: none;
 }

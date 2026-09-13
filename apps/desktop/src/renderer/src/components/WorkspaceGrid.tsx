@@ -243,35 +243,37 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
                 <Panel
                   className={`viz-card${editable ? "" : " viz-card--play"}`}
                   title={
-                    <span className={editable ? "viz-card__drag-handle" : undefined}>
-                      {definition?.icon} {definition?.name ?? item.component}
-                    </span>
+                    editable ? (
+                      <span className="viz-card__drag-handle">
+                        {definition?.icon} {definition?.name ?? item.component}
+                      </span>
+                    ) : undefined
                   }
                   actions={
-                    <>
-                      {definition && definition.configSchema.length > 0 && (
-                        <div className="viz-card__settings-anchor">
-                          <button
-                            className="viz-card__icon-button"
-                            title="Component settings"
-                            onClick={() =>
-                              setOpenComponentSettingsFor((cur) => (cur === item.id ? null : item.id))
-                            }
-                          >
-                            ⚙
-                          </button>
-                          {openComponentSettingsFor === item.id && (
-                            <div className="component-settings-popover">
-                              <ComponentSettingsFields
-                                schema={definition.configSchema}
-                                config={item.props ?? definition.defaultProps}
-                                onConfigChange={(partial) => updateInstanceProps(item.id, partial)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {editable && (
+                    editable ? (
+                      <>
+                        {definition && definition.configSchema.length > 0 && (
+                          <div className="viz-card__settings-anchor">
+                            <button
+                              className="viz-card__icon-button"
+                              title="Component settings"
+                              onClick={() =>
+                                setOpenComponentSettingsFor((cur) => (cur === item.id ? null : item.id))
+                              }
+                            >
+                              ⚙
+                            </button>
+                            {openComponentSettingsFor === item.id && (
+                              <div className="component-settings-popover">
+                                <ComponentSettingsFields
+                                  schema={definition.configSchema}
+                                  config={item.props ?? definition.defaultProps}
+                                  onConfigChange={(partial) => updateInstanceProps(item.id, partial)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <button
                           className="viz-card__icon-button viz-card__remove"
                           onClick={() => removeInstance(item.id)}
@@ -279,8 +281,8 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
                         >
                           ✕
                         </button>
-                      )}
-                    </>
+                      </>
+                    ) : undefined
                   }
                 >
                   {Component && definition ? (
