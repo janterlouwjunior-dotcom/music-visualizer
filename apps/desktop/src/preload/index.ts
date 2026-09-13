@@ -12,12 +12,16 @@ const api = {
     duplicate: (id: string, newName: string): Promise<Workspace> =>
       ipcRenderer.invoke("workspaces:duplicate", id, newName),
     delete: (id: string): Promise<void> => ipcRenderer.invoke("workspaces:delete", id),
+    rename: (id: string, name: string): Promise<Workspace> =>
+      ipcRenderer.invoke("workspaces:rename", id, name),
     setFolder: (id: string, folderId: string | null): Promise<Workspace> =>
       ipcRenderer.invoke("workspaces:setFolder", id, folderId)
   },
   folders: {
     list: (): Promise<WorkspaceFolder[]> => ipcRenderer.invoke("folders:list"),
     create: (name: string): Promise<WorkspaceFolder> => ipcRenderer.invoke("folders:create", name),
+    rename: (id: string, name: string): Promise<WorkspaceFolder> =>
+      ipcRenderer.invoke("folders:rename", id, name),
     delete: (id: string): Promise<void> => ipcRenderer.invoke("folders:delete", id)
   },
   midiSettings: {

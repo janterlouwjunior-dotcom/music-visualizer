@@ -6,10 +6,11 @@ import {
   duplicateWorkspace,
   listWorkspaces,
   loadWorkspace,
+  renameWorkspace,
   saveWorkspace,
   setWorkspaceFolder
 } from "./workspaces";
-import { createFolder, deleteFolder, listFolders } from "./folders";
+import { createFolder, deleteFolder, listFolders, renameFolder } from "./folders";
 import {
   addMidiInput,
   addMidiOutput,
@@ -124,11 +125,13 @@ function registerIpcHandlers(): void {
     duplicateWorkspace(id, newName)
   );
   ipcMain.handle("workspaces:delete", (_event, id: string) => deleteWorkspace(id));
+  ipcMain.handle("workspaces:rename", (_event, id: string, name: string) => renameWorkspace(id, name));
   ipcMain.handle("workspaces:setFolder", (_event, id: string, folderId: string | null) =>
     setWorkspaceFolder(id, folderId)
   );
   ipcMain.handle("folders:list", () => listFolders());
   ipcMain.handle("folders:create", (_event, name: string) => createFolder(name));
+  ipcMain.handle("folders:rename", (_event, id: string, name: string) => renameFolder(id, name));
   ipcMain.handle("folders:delete", (_event, id: string) => deleteFolder(id));
   ipcMain.handle("midiSettings:get", () => getMidiSettings());
   ipcMain.handle("midiSettings:addInput", (_event, name: string, sourceId: string) =>

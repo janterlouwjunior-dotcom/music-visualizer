@@ -40,6 +40,17 @@ export async function createFolder(name: string): Promise<WorkspaceFolder> {
   });
 }
 
+export async function renameFolder(id: string, name: string): Promise<WorkspaceFolder> {
+  return runSerially(async () => {
+    const folders = await readFolders();
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) throw new Error(`Folder not found: ${id}`);
+    folder.name = name;
+    await writeFolders(folders);
+    return folder;
+  });
+}
+
 export async function deleteFolder(id: string): Promise<void> {
   await runSerially(async () => {
     const folders = (await readFolders()).filter((f) => f.id !== id);

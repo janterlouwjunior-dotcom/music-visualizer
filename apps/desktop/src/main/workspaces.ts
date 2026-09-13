@@ -102,6 +102,15 @@ export async function deleteWorkspace(id: string): Promise<void> {
   return runSerially(() => fs.rm(workspacePath(id), { force: true }));
 }
 
+export async function renameWorkspace(id: string, name: string): Promise<Workspace> {
+  return runSerially(async () => {
+    const workspace = await loadWorkspace(id);
+    const next: Workspace = { ...workspace, name };
+    await writeWorkspaceFile(next);
+    return next;
+  });
+}
+
 export async function setWorkspaceFolder(id: string, folderId: string | null): Promise<Workspace> {
   return runSerially(async () => {
     const workspace = await loadWorkspace(id);

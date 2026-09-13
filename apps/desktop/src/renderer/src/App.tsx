@@ -159,6 +159,17 @@ export function App() {
     setActiveWorkspace((prev) => (prev && prev.folderId === id ? { ...prev, folderId: undefined } : prev));
   }
 
+  async function handleRenameWorkspace(id: string, name: string): Promise<void> {
+    await window.api.workspaces.rename(id, name);
+    await refreshSummaries();
+    setActiveWorkspace((prev) => (prev && prev.id === id ? { ...prev, name } : prev));
+  }
+
+  async function handleRenameFolder(id: string, name: string): Promise<void> {
+    await window.api.folders.rename(id, name);
+    await refreshFolders();
+  }
+
   async function handleMoveToFolder(workspaceId: string, folderId: string | null): Promise<void> {
     await window.api.workspaces.setFolder(workspaceId, folderId);
     await refreshSummaries();
@@ -199,6 +210,8 @@ export function App() {
           onDelete={handleDeleteWorkspace}
           onCreateFolder={handleCreateFolder}
           onDeleteFolder={handleDeleteFolder}
+          onRenameWorkspace={handleRenameWorkspace}
+          onRenameFolder={handleRenameFolder}
           onMoveToFolder={handleMoveToFolder}
           onOpenSettings={() => setView("settings")}
         />

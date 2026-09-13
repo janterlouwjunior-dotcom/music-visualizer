@@ -88,14 +88,33 @@
   opacity: 1;
 }
 
-.sidebar__folder-select {
-  max-width: 84px;
-  background: var(--color-bg-sunken);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  padding: 1px var(--space-1);
+.sidebar__rename-input {
+  flex: 1;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+}
+
+.sidebar__rename-input--folder {
+  font-weight: var(--font-weight-medium);
+}
+
+.sidebar__list--dragover {
+  background: var(--color-bg-raised);
+  border-radius: var(--radius-md);
+}
+
+.sidebar__folder--dragover > .sidebar__folder-header {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.sidebar__folder--dragover > .sidebar__folder-header .sidebar__folder-button {
+  color: inherit;
 }
 
 .sidebar__folder {
