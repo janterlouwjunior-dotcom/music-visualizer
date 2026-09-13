@@ -54,25 +54,46 @@ function createMainWindow(): BrowserWindow {
     return { action: "deny" };
   });
 
-  // A renderer crash otherwise fails completely silently: the main process
-  // survives, the window stays open, but it just goes blank/unresponsive
-  // forever. Log the reason and reload so the window recovers on its own.
-  mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    console.error("Renderer process gone:", details.reason, details.exitCode);
+  // Recovers from a crashed or hung renderer by reloading — but only a
+  // few times per short window. A cause that clears itself (a one-off GPU
+  // blip, a transient OS hiccup) gets fixed by the reload. A cause that
+  // doesn't clear itself (e.g. a MIDI driver stuck at the OS level — see
+  // requestMIDIAccess() in midiService.ts) would otherwise retrigger the
+  // same hang right after every reload, forever, silently: reloading looks
+  // like recovery but the window never actually becomes usable again.
+  const MAX_RECOVERY_ATTEMPTS = 3;
+  const RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+  let recoveryAttempts = 0;
+  let recoveryWindowStart = 0;
+
+  function attemptRecovery(reason: string): void {
+    const now = Date.now();
+    if (now - recoveryWindowStart > RECOVERY_WINDOW_MS) {
+      recoveryWindowStart = now;
+      recoveryAttempts = 0;
+    }
+    recoveryAttempts += 1;
+    if (recoveryAttempts > MAX_RECOVERY_ATTEMPTS) {
+      console.error(
+        `${reason} again after ${MAX_RECOVERY_ATTEMPTS} reload attempts — giving up rather than reloading forever.`
+      );
+      return;
+    }
+    console.error(`${reason}; reloading (attempt ${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS}).`);
     if (!mainWindow.isDestroyed()) {
       mainWindow.reload();
     }
+  }
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    attemptRecovery(`Renderer process gone (${details.reason}, exit code ${details.exitCode})`);
   });
 
   // A hung renderer (distinct from a crashed one, above) still shows a
   // window and passes Electron's own process checks — Task Manager reports
   // it as "Responding" — while being fully dead to mouse and keyboard input.
-  // Reload gives the same self-healing behavior render-process-gone does.
   mainWindow.webContents.on("unresponsive", () => {
-    console.error("Renderer became unresponsive; reloading.");
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.reload();
-    }
+    attemptRecovery("Renderer became unresponsive");
   });
 
   if (is_dev()) {

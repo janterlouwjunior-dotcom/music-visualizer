@@ -28,6 +28,16 @@ export interface MidiPortInfo {
   name: string;
 }
 
+// navigator.requestMIDIAccess() hangs the whole renderer on this machine.
+// A reboot cleared it once, but it came back within the same session — so
+// it's not a one-time fluke, it's a recurring, currently-unpredictable OS/
+// driver-level condition. A client-side timeout does NOT help: proven by
+// testing that the underlying OS-level device enumeration keeps running and
+// still deadlocks the render thread later regardless of whether JS is still
+// awaiting it. Disabled until there's a reliable way to isolate or avoid it —
+// flip back to true only for a deliberate, monitored test.
+const MIDI_ENABLED = false;
+
 class MidiService {
   private access: MIDIAccess | null = null;
   private handlers = new Set<Handler>();
@@ -38,6 +48,9 @@ class MidiService {
     if (this.initPromise) return this.initPromise;
 
     this.initPromise = (async () => {
+      if (!MIDI_ENABLED) {
+        return { ok: false, reason: "MIDI disabled — see the MIDI_ENABLED comment in midiService.ts" };
+      }
       if (typeof navigator.requestMIDIAccess !== "function") {
         return { ok: false, reason: "Web MIDI API not available in this runtime" };
       }
