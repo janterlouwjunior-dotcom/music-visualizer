@@ -3,6 +3,7 @@ import { Sidebar } from "./components/Sidebar";
 import { WorkspaceGrid } from "./components/WorkspaceGrid";
 import { SettingsPage } from "./components/SettingsPage";
 import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../../shared/workspace";
+import type { UpdaterStatus } from "../../shared/updater";
 import { midiService } from "./midi/midiService";
 import "./App.css";
 
@@ -16,7 +17,10 @@ export function App() {
   const [midiStatus, setMidiStatus] = useState<string>("Initializing MIDI…");
   const [mode, setMode] = useState<Mode>("edit");
   const [view, setView] = useState<View>("workspace");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [updaterStatus, setUpdaterStatus] = useState<UpdaterStatus | null>(null);
   const saveTimer = useRef<number | null>(null);
+  const saveTimerWorkspaceId = useRef<string | null>(null);
 
   const refreshSummaries = useCallback(async (): Promise<WorkspaceSummary[]> => {
     const list = await window.api.workspaces.list();
@@ -32,13 +36,20 @@ export function App() {
 
   useEffect(() => {
     (async () => {
-      const [list] = await Promise.all([refreshSummaries(), refreshFolders()]);
-      if (list.length > 0) {
-        const first = await window.api.workspaces.load(list[0].id);
-        setActiveWorkspace(first);
+      try {
+        const [list] = await Promise.all([refreshSummaries(), refreshFolders()]);
+        if (list.length > 0) {
+          const first = await window.api.workspaces.load(list[0].id);
+          setActiveWorkspace(first);
+        }
+      } catch (err) {
+        console.error("Failed to load workspaces:", err);
+        setLoadError(err instanceof Error ? err.message : String(err));
       }
     })();
   }, [refreshSummaries, refreshFolders]);
+
+  useEffect(() => window.api.updater.onStatus(setUpdaterStatus), []);
 
   useEffect(() => {
     midiService.init().then((result) => {
@@ -117,6 +128,18 @@ export function App() {
   }
 
   async function handleDeleteWorkspace(id: string): Promise<void> {
+    // A pending debounced autosave (see handleWorkspaceChange) captured this
+    // workspace's data in its closure — if it's for the workspace being
+    // deleted, letting it fire afterward would recreate the just-deleted
+    // file. Only clear it when it actually belongs to `id`: the timer can be
+    // pending for whichever workspace was active when it was scheduled, not
+    // necessarily the one being deleted here (the Sidebar can delete any
+    // workspace, not just the active one).
+    if (saveTimer.current && saveTimerWorkspaceId.current === id) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      saveTimerWorkspaceId.current = null;
+    }
     await window.api.workspaces.delete(id);
     const list = await refreshSummaries();
     if (activeWorkspace?.id === id) {
@@ -147,8 +170,11 @@ export function App() {
   function handleWorkspaceChange(next: Workspace): void {
     setActiveWorkspace(next);
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimerWorkspaceId.current = next.id;
     saveTimer.current = window.setTimeout(() => {
-      window.api.workspaces.save(next);
+      window.api.workspaces.save(next).catch((err) => {
+        console.error("Failed to save workspace:", err);
+      });
     }, 400);
   }
 
@@ -181,6 +207,20 @@ export function App() {
         <header className="app__header">
           <h1 className="app__title">{activeWorkspace?.name ?? "No workspace selected"}</h1>
           <div className="app__header-status">
+            {updaterStatus?.status === "downloading" && (
+              <span className="app__update-status">
+                Downloading update… {Math.round(updaterStatus.percent ?? 0)}%
+              </span>
+            )}
+            {updaterStatus?.status === "ready" && (
+              <button
+                className="app__update-button"
+                onClick={() => window.api.updater.install()}
+                title="Restart to finish installing the downloaded update"
+              >
+                ⭳ Restart &amp; update
+              </button>
+            )}
             <span className="app__mode-indicator" title="Press Tab to switch modes">
               {mode === "edit" ? "✎ Edit — Tab for Play" : "▶ Play — Tab to edit"}
             </span>
@@ -194,7 +234,11 @@ export function App() {
             onChange={handleWorkspaceChange}
           />
         ) : (
-          <div className="app__empty">Create a workspace to get started.</div>
+          <div className="app__empty">
+            {loadError
+              ? `Couldn't load workspaces: ${loadError}. Check that your workspace files aren't corrupted.`
+              : "Create a workspace to get started."}
+          </div>
         )}
       </main>
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import "./ColorWheel.css";
 
 export interface ColorWheelProps {
@@ -57,6 +57,17 @@ function hexToHsv(hex: string): Hsv {
  * a conic-gradient (hue) with a radial white-to-transparent overlay
  * (desaturates toward the center) — plain alpha compositing, no JS pixel math
  * needed to render it; only the pointer math is manual.
+ *
+ * Drag tracking uses Pointer Events with explicit capture
+ * (setPointerCapture) rather than a window-level mousemove/mouseup
+ * useEffect. That earlier approach could get stuck: if the mouseup happened
+ * outside the page's content area (the native title bar, another monitor, an
+ * alt-tab mid-drag), the DOM event never reached `window` and the dragging
+ * flag never reset, so every later mousemove anywhere kept re-triggering
+ * onChange. Pointer capture guarantees pointerup/pointercancel is delivered
+ * to this element regardless of where the pointer ends up, and it also means
+ * plain JSX event props are enough — no effect, no listener churn on every
+ * render or every drag tick.
  */
 export function ColorWheel({ value, onChange, size = 120 }: ColorWheelProps) {
   const wheelRef = useRef<HTMLDivElement>(null);
@@ -91,20 +102,27 @@ export function ColorWheel({ value, onChange, size = 120 }: ColorWheelProps) {
     [onChange]
   );
 
-  useEffect(() => {
-    function handleMove(e: MouseEvent): void {
-      if (draggingRef.current) updateFromPoint(e.clientX, e.clientY);
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>): void {
+    // Capture can throw (e.g. NotFoundError for a pointer id the browser
+    // doesn't recognize as active) — that shouldn't prevent the drag from
+    // starting, just lose the "keep tracking outside the element" guarantee
+    // capture provides.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignored — see above.
     }
-    function handleUp(): void {
-      draggingRef.current = false;
-    }
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-    };
-  }, [updateFromPoint]);
+    draggingRef.current = true;
+    updateFromPoint(e.clientX, e.clientY);
+  }
+
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>): void {
+    if (draggingRef.current) updateFromPoint(e.clientX, e.clientY);
+  }
+
+  function endDrag(): void {
+    draggingRef.current = false;
+  }
 
   function handleLightnessChange(v: number): void {
     setHsv((prev) => {
@@ -123,10 +141,10 @@ export function ColorWheel({ value, onChange, size = 120 }: ColorWheelProps) {
         ref={wheelRef}
         className="mtv-color-wheel__wheel"
         style={{ width: size, height: size }}
-        onMouseDown={(e) => {
-          draggingRef.current = true;
-          updateFromPoint(e.clientX, e.clientY);
-        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
       >
         <div
           className="mtv-color-wheel__knob"

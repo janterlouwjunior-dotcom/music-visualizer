@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import "./DualRangeSlider.css";
 
 export interface DualRangeSliderProps {
@@ -21,6 +21,17 @@ type Handle = "low" | "high";
  * Generic two-handle range slider — deliberately has no MIDI/note awareness
  * of its own (that's the caller's `formatLabel`), so it stays reusable
  * outside this app like the rest of the design-system package.
+ *
+ * Drag tracking uses Pointer Events with explicit capture
+ * (setPointerCapture) rather than a window-level mousemove/mouseup
+ * useEffect. The earlier approach could get stuck: if the mouseup happened
+ * outside the page's content area, the DOM event never reached `window` and
+ * the dragging ref never reset, so every later mousemove anywhere kept
+ * re-triggering onChange. Pointer capture guarantees pointerup/pointercancel
+ * is delivered to the specific thumb that started the drag regardless of
+ * where the pointer ends up, and scopes pointermove to that same thumb, so
+ * there's no cross-talk between the two handles and no window-level
+ * listener to rebind on every render or every drag tick.
  */
 export function DualRangeSlider({
   min,
@@ -33,7 +44,6 @@ export function DualRangeSlider({
   onChange
 }: DualRangeSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef<Handle | null>(null);
   const [dragging, setDragging] = useState<Handle | null>(null);
 
   const clampLow = useCallback(
@@ -65,34 +75,32 @@ export function DualRangeSlider({
     [min, max]
   );
 
-  const moveHandle = useCallback(
-    (handle: Handle, clientX: number) => {
-      const raw = valueFromClientX(clientX);
-      if (handle === "low") onChange(clampLow(raw), high);
-      else onChange(low, clampHigh(raw));
-    },
-    [valueFromClientX, clampLow, clampHigh, low, high, onChange]
-  );
+  function moveHandle(handle: Handle, clientX: number): void {
+    const raw = valueFromClientX(clientX);
+    if (handle === "low") onChange(clampLow(raw), high);
+    else onChange(low, clampHigh(raw));
+  }
 
-  useEffect(() => {
-    function handleMove(e: MouseEvent): void {
-      if (draggingRef.current) moveHandle(draggingRef.current, e.clientX);
+  function handlePointerDown(handle: Handle, e: ReactPointerEvent<HTMLDivElement>): void {
+    // Capture can throw (e.g. NotFoundError for a pointer id the browser
+    // doesn't recognize as active) — that shouldn't prevent the drag from
+    // starting, just lose the "keep tracking outside the element" guarantee
+    // capture provides.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignored — see above.
     }
-    function handleUp(): void {
-      draggingRef.current = null;
-      setDragging(null);
-    }
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-    };
-  }, [moveHandle]);
-
-  function startDrag(handle: Handle): void {
-    draggingRef.current = handle;
     setDragging(handle);
+    moveHandle(handle, e.clientX);
+  }
+
+  function handlePointerMove(handle: Handle, e: ReactPointerEvent<HTMLDivElement>): void {
+    moveHandle(handle, e.clientX);
+  }
+
+  function endDrag(): void {
+    setDragging(null);
   }
 
   function handleKeyDown(handle: Handle, e: KeyboardEvent): void {
@@ -124,7 +132,10 @@ export function DualRangeSlider({
           aria-valuemax={high - minGap}
           aria-valuenow={low}
           aria-label="Lowest value"
-          onMouseDown={() => startDrag("low")}
+          onPointerDown={(e) => handlePointerDown("low", e)}
+          onPointerMove={(e) => handlePointerMove("low", e)}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           onKeyDown={(e) => handleKeyDown("low", e)}
         >
           <span className="mtv-range-slider__label">{formatLabel(low)}</span>
@@ -138,7 +149,10 @@ export function DualRangeSlider({
           aria-valuemax={max}
           aria-valuenow={high}
           aria-label="Highest value"
-          onMouseDown={() => startDrag("high")}
+          onPointerDown={(e) => handlePointerDown("high", e)}
+          onPointerMove={(e) => handlePointerMove("high", e)}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           onKeyDown={(e) => handleKeyDown("high", e)}
         >
           <span className="mtv-range-slider__label">{formatLabel(high)}</span>

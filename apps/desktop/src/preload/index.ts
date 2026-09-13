@@ -1,12 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Workspace, WorkspaceFolder, WorkspaceSummary } from "../shared/workspace";
 import type { MidiInputDevice, MidiOutputDevice, MidiSettings } from "../shared/midiSettings";
-
-export interface UpdaterStatus {
-  status: "available" | "up-to-date" | "downloading" | "ready" | "error";
-  percent?: number;
-  message?: string;
-}
+import type { UpdaterStatus } from "../shared/updater";
 
 const api = {
   workspaces: {

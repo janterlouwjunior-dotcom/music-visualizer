@@ -74,7 +74,16 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
   const noteRange = config.noteRange ?? DEFAULT_NOTE_RANGE;
 
   useEffect(() => {
-    window.api.midiSettings.get().then(setMidiSettings);
+    // Refetch on focus, not just on mount: this instance stays mounted for as
+    // long as its workspace does, but the named-device mapping it depends on
+    // (inputSourceId below) is edited on a separate page (Settings), so a
+    // mount-only fetch would go stale until the component happened to remount.
+    function refresh(): void {
+      window.api.midiSettings.get().then(setMidiSettings);
+    }
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
   }, []);
 
   const inputSourceId = useMemo(

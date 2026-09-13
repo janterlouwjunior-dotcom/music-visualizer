@@ -45,10 +45,32 @@
   font-family: var(--font-family-mono);
 }
 
+.app__update-status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.app__update-button {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.app__update-button:hover {
+  background: var(--color-accent-strong);
+}
+
 .app__empty {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-faint);
+  text-align: center;
+  padding: var(--space-4);
 }

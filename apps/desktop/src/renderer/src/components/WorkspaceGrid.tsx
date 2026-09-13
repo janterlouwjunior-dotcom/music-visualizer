@@ -9,6 +9,7 @@ import {
 } from "../../../shared/workspace";
 import { getVisualizationDefinition, listVisualizationDefinitions } from "./registry";
 import { ComponentSettingsFields } from "./ComponentSettingsFields";
+import type { MidiBridge } from "./types";
 import { midiService } from "../midi/midiService";
 import "./WorkspaceGrid.css";
 
@@ -16,6 +17,17 @@ const MIN_COLS = 2;
 const MAX_COLS = 48;
 const MIN_ROW_HEIGHT = 10;
 const MAX_ROW_HEIGHT = 200;
+
+// A stable, module-scoped object rather than a fresh literal per render: the
+// previous inline `midi={{ onMidiNote: ..., sendMidiNote: ... }}` created a
+// new reference on every WorkspaceGrid render, which every visualization's
+// subscription useEffect depends on — forcing every MIDI-listening component
+// on the grid to unsubscribe/resubscribe from midiService on any unrelated
+// re-render (e.g. someone else's settings edit).
+const midiBridge: MidiBridge = {
+  onMidiNote: (handler) => midiService.subscribe(handler),
+  sendMidiNote: (event) => midiService.send(event)
+};
 
 const AutoWidthGridLayout = WidthProvider(GridLayout);
 
@@ -274,12 +286,9 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
                   {Component && definition ? (
                     <Component
                       instanceId={item.id}
-                      config={item.props ?? definition.defaultProps}
+                      config={{ ...definition.defaultProps, ...item.props }}
                       onConfigChange={(partial) => updateInstanceProps(item.id, partial)}
-                      midi={{
-                        onMidiNote: (handler) => midiService.subscribe(handler),
-                        sendMidiNote: (event) => midiService.send(event)
-                      }}
+                      midi={midiBridge}
                     />
                   ) : (
                     <div className="viz-card__unknown">Unknown component: {item.component}</div>
