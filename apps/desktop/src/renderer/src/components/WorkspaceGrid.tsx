@@ -113,11 +113,16 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
     const definition = getVisualizationDefinition(componentKey);
     if (!definition) return;
     const id = `${componentKey}-${Date.now().toString(36)}`;
+    // With compaction off (components can be placed anywhere, see the grid's
+    // compactType below), `y: Infinity` no longer resolves to "the bottom" —
+    // that trick relies on the compaction pass react-grid-layout skips
+    // entirely when compactType is null. Compute the actual next free row.
+    const nextY = workspace.layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
     const newItem: ComponentInstance = {
       id,
       component: componentKey,
       x: 0,
-      y: Infinity,
+      y: nextY,
       w: definition.defaultSize.w,
       h: definition.defaultSize.h,
       props: { ...definition.defaultProps }
@@ -229,7 +234,8 @@ export function WorkspaceGrid({ workspace, editable, onChange }: WorkspaceGridPr
           cols={gridSettings.cols}
           rowHeight={gridSettings.rowHeight}
           margin={[12, 12]}
-          compactType="vertical"
+          compactType={null}
+          preventCollision
           isDraggable={editable}
           isResizable={editable}
           onLayoutChange={handleLayoutChange}
