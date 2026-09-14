@@ -51,7 +51,8 @@
       {
         "provider": "github",
         "owner": "janterlouwjunior-dotcom",
-        "repo": "music-visualizer"
+        "repo": "music-visualizer",
+        "releaseType": "release"
       }
     ],
     "win": {
