@@ -1,7 +1,7 @@
 {
   "name": "@music-theory-viz/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Music theory visualization workspace app",
   "main": "./out/main/index.js",
   "author": "Jan ter Louw",
