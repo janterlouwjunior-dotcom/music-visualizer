@@ -12,7 +12,8 @@
     "start": "electron-vite preview",
     "package": "electron-vite build && electron-builder --dir",
     "build:win": "electron-vite build && electron-builder --win",
-    "build:mac": "electron-vite build && electron-builder --mac"
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "release:win": "electron-vite build && electron-builder --win --publish always"
   },
   "dependencies": {
     "@julusian/midi": "^3.8.1",
@@ -49,8 +50,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "REPLACE_WITH_GITHUB_OWNER",
-        "repo": "REPLACE_WITH_GITHUB_REPO"
+        "owner": "janterlouwjunior-dotcom",
+        "repo": "music-visualizer"
       }
     ],
     "win": {

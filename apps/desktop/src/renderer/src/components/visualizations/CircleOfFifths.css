@@ -1,4 +1,5 @@
 .cof {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -26,10 +27,6 @@
   fill: var(--color-bg-raised);
 }
 
-.cof__wedge--selected {
-  fill: var(--color-accent);
-}
-
 .cof__wedge--midi {
   fill: var(--color-midi-active);
 }
@@ -39,5 +36,25 @@
   font-family: var(--font-family-ui);
   font-size: 14px;
   font-weight: var(--font-weight-medium);
+  pointer-events: none;
+}
+
+.cof__chord-symbol {
+  fill: var(--color-accent);
+  font-family: var(--font-family-ui);
+  font-size: 26px;
+  font-weight: var(--font-weight-bold);
+  pointer-events: none;
+}
+
+/* Play-mode-only confirmation for the global flat/sharp hotkey (see
+   CircleOfFifths.tsx and WorkspaceGrid.tsx) — bigger and bolder than the
+   chord symbol it briefly replaces, since its whole job is to be noticed
+   for the half-second it's up. */
+.cof__flash-symbol {
+  fill: var(--color-accent);
+  font-family: var(--font-family-ui);
+  font-size: 48px;
+  font-weight: var(--font-weight-bold);
   pointer-events: none;
 }

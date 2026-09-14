@@ -1,0 +1,26 @@
+.text-box {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  padding: var(--space-2);
+  line-height: 1.3;
+  /* No soft-wrapping — a textarea's default. The point of the box is to fit
+     the text to exactly the lines the user actually typed (see TextBox.tsx's
+     fit search, which measures scrollHeight/scrollWidth against this), and
+     wrapping would let one long typed line silently become two rendered
+     ones, which the search would then "fix" by shrinking everything to
+     cram in a line break nobody asked for. */
+  white-space: pre;
+  /* The one place in the app where selecting text is the point — overrides
+     the app-wide user-select: none in global.css. */
+  user-select: text;
+}
+
+.text-box::placeholder {
+  color: var(--color-text-faint);
+}

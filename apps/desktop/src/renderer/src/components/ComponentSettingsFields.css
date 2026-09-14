@@ -27,11 +27,66 @@
   font-size: var(--font-size-sm);
   font-family: var(--font-family-ui);
   width: 100%;
+  /* Matches .component-settings__toggle's explicit 32px exactly, so a
+     dropdown sitting next to a row of icon buttons shares their bottom
+     edge instead of the (usually taller) box a select's own UA styling
+     would otherwise give it. */
+  height: 32px;
 }
 
-.component-settings__note-range-count {
-  text-align: center;
-  font-size: var(--font-size-xs);
+.component-settings__note-range {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.component-settings__note-range .mtv-range-slider {
+  flex: 1;
+  min-width: 120px;
+}
+
+.component-settings__note-range-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.component-settings__note-range-numbers .component-settings__number {
+  width: 52px;
+}
+
+.component-settings__note-range-sep {
   color: var(--color-text-faint);
-  font-family: var(--font-family-mono);
+}
+
+.component-settings__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.component-settings__toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.component-settings__toggle--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.component-settings__button-row {
+  display: flex;
+  gap: 2px;
 }

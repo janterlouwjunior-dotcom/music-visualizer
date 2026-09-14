@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import type { MidiNoteEvent } from "../../../shared/midi";
 
 export type ConfigFieldType =
@@ -11,13 +11,20 @@ export type ConfigFieldType =
   | "midiInputDevice"
   | "midiOutputDevice"
   | "midiInputChannel"
-  | "midiOutputChannel";
+  | "midiOutputChannel"
+  | "toggleButton"
+  | "align"
+  | "flatSharp"
+  | "note";
 
 /** Stored value shape for a "noteRange" field — MIDI note numbers, inclusive. */
 export interface NoteRangeValue {
   low: number;
   high: number;
 }
+
+/** Stored value shape for an "align" field. */
+export type TextAlign = "left" | "center" | "right";
 
 export interface ConfigFieldSchema {
   key: string;
@@ -31,6 +38,12 @@ export interface ConfigFieldSchema {
   /** For "noteRange" only: min/max allowed (high - low), e.g. a min/max key count minus one. */
   minGap?: number;
   maxGap?: number;
+  /** For "toggleButton" only: the glyph shown on the button — falls back to `label` if omitted. */
+  icon?: string;
+  /** For "toggleButton" only: style applied to the glyph itself, e.g. { fontWeight: "bold" } for a "B" button. */
+  iconStyle?: CSSProperties;
+  /** Merges consecutive fields sharing the same group name under one shared label instead of each getting (or not getting) its own — e.g. "Bold" and "Italic" both under a single "Style" heading. */
+  group?: string;
 }
 
 export interface MidiBridge {
@@ -45,14 +58,14 @@ export interface VisualizationProps<TProps = Record<string, unknown>> {
   config: TProps;
   onConfigChange: (next: Partial<TProps>) => void;
   midi: MidiBridge;
+  /** True in Edit mode, false in Play mode — for components whose own rendering should differ (e.g. a text box only needs a scrollbar while it's being edited). */
+  editable: boolean;
 }
 
 export interface VisualizationDefinition<TProps = Record<string, unknown>> {
   key: string;
   name: string;
   description: string;
-  /** Placeholder thumbnail for the component picker — swap for real icons later. */
-  icon: string;
   configSchema: ConfigFieldSchema[];
   defaultProps: TProps;
   defaultSize: { w: number; h: number };

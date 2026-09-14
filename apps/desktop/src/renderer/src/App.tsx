@@ -22,6 +22,19 @@ export function App() {
   const saveTimer = useRef<number | null>(null);
   const saveTimerWorkspaceId = useRef<string | null>(null);
 
+  // Undo/redo history for the active workspace's layout/settings/component
+  // props — anything that flows through handleWorkspaceChange. Plain refs
+  // rather than state: nothing in the UI reflects stack contents (no
+  // enabled/disabled undo button), so there's no reason to re-render on push.
+  const undoStack = useRef<Workspace[]>([]);
+  const redoStack = useRef<Workspace[]>([]);
+  // The workspace state from just before the current burst of edits (e.g.
+  // one drag, one resize, one slider drag) — flushed into undoStack once the
+  // burst goes idle, so a whole gesture becomes one undo step instead of one
+  // per intermediate onLayoutChange/onChange call.
+  const pendingBeforeEdit = useRef<Workspace | null>(null);
+  const burstTimer = useRef<number | null>(null);
+
   const refreshSummaries = useCallback(async (): Promise<WorkspaceSummary[]> => {
     const list = await window.api.workspaces.list();
     setSummaries(list);
@@ -51,19 +64,38 @@ export function App() {
 
   useEffect(() => window.api.updater.onStatus(setUpdaterStatus), []);
 
+  // Switching to a different workspace starts a fresh undo history — edits
+  // to workspace A shouldn't be undoable after you've moved on to workspace
+  // B. Undo/redo restoring a past version of the SAME workspace re-sets
+  // activeWorkspace to an object with the same id, so this intentionally
+  // doesn't fire then.
   useEffect(() => {
+    undoStack.current = [];
+    redoStack.current = [];
+    pendingBeforeEdit.current = null;
+    if (burstTimer.current) {
+      window.clearTimeout(burstTimer.current);
+      burstTimer.current = null;
+    }
+  }, [activeWorkspace?.id]);
+
+  useEffect(() => {
+    function describeActiveDevices(): string {
+      const info = midiService.getDeviceInfo();
+      return info.inputs.length || info.outputs.length
+        ? `MIDI ready — ${info.inputs.length} in / ${info.outputs.length} out`
+        : "MIDI ready — no devices selected";
+    }
+
     midiService.init().then((result) => {
-      if (result.ok) {
-        const info = midiService.getDeviceInfo();
-        setMidiStatus(
-          info.inputs.length || info.outputs.length
-            ? `MIDI ready — ${info.inputs.length} in / ${info.outputs.length} out`
-            : "MIDI ready — no devices connected"
-        );
-      } else {
-        setMidiStatus(`MIDI unavailable: ${result.reason}`);
-      }
+      setMidiStatus(result.ok ? describeActiveDevices() : `MIDI unavailable: ${result.reason}`);
     });
+
+    // Keeps the header in sync with Settings: adding/removing a device there
+    // takes effect on the running MIDI process immediately (see
+    // nativeMidi.ts's reconfigure()), so the status text should update
+    // immediately too, not just reflect whatever was active at startup.
+    return midiService.onDeviceChange(() => setMidiStatus(describeActiveDevices()));
   }, []);
 
   // Tab toggles Edit/Play mode; Left/Right arrow keys cycle between sibling
@@ -82,6 +114,15 @@ export function App() {
       if (event.key === "Tab" && !isFormControl) {
         event.preventDefault();
         setMode((m) => (m === "edit" ? "play" : "edit"));
+        return;
+      }
+
+      // Left as native browser undo/redo while a text field has focus (e.g.
+      // renaming a workspace), same as Tab above.
+      if (!isFormControl && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) handleRedo();
+        else handleUndo();
         return;
       }
 
@@ -113,8 +154,13 @@ export function App() {
   }
 
   async function handleCreateWorkspace(): Promise<void> {
+    // Every workspace lives in a folder — "the currently used folder" is
+    // wherever the active workspace already is, falling back to the first
+    // folder on the very first creation (before any workspace is active).
+    const folderId = activeWorkspace?.folderId ?? folders[0]?.id;
+    if (!folderId) return;
     const name = `New Workspace ${summaries.length + 1}`;
-    const workspace = await window.api.workspaces.create(name);
+    const workspace = await window.api.workspaces.create(name, folderId);
     await refreshSummaries();
     setActiveWorkspace(workspace);
   }
@@ -154,9 +200,21 @@ export function App() {
   }
 
   async function handleDeleteFolder(id: string): Promise<void> {
-    await window.api.folders.delete(id);
-    await Promise.all([refreshFolders(), refreshSummaries()]);
-    setActiveWorkspace((prev) => (prev && prev.folderId === id ? { ...prev, folderId: undefined } : prev));
+    // The Sidebar already disables deleting a non-empty or the last
+    // remaining folder — this is a defensive backstop against a stale UI
+    // state (e.g. a workspace moved in from another window) racing the
+    // click, not the primary way the user finds out it's blocked.
+    try {
+      await window.api.folders.delete(id);
+      await refreshFolders();
+    } catch (err) {
+      console.error("Failed to delete folder:", err);
+    }
+  }
+
+  async function handleReorderFolders(orderedIds: string[]): Promise<void> {
+    await window.api.folders.reorder(orderedIds);
+    await refreshFolders();
   }
 
   async function handleRenameWorkspace(id: string, name: string): Promise<void> {
@@ -170,23 +228,75 @@ export function App() {
     await refreshFolders();
   }
 
-  async function handleMoveToFolder(workspaceId: string, folderId: string | null): Promise<void> {
+  async function handleMoveToFolder(workspaceId: string, folderId: string): Promise<void> {
     await window.api.workspaces.setFolder(workspaceId, folderId);
     await refreshSummaries();
-    setActiveWorkspace((prev) =>
-      prev && prev.id === workspaceId ? { ...prev, folderId: folderId ?? undefined } : prev
-    );
+    setActiveWorkspace((prev) => (prev && prev.id === workspaceId ? { ...prev, folderId } : prev));
   }
 
-  function handleWorkspaceChange(next: Workspace): void {
-    setActiveWorkspace(next);
+  async function handleReorderWorkspaces(folderId: string, orderedIds: string[]): Promise<void> {
+    await window.api.workspaces.reorder(folderId, orderedIds);
+    await refreshSummaries();
+  }
+
+  const UNDO_BURST_IDLE_MS = 500;
+  const MAX_HISTORY = 100;
+
+  /** Pushes the in-progress edit burst's "before" snapshot onto undoStack. */
+  function commitPendingHistory(): void {
+    if (burstTimer.current) {
+      window.clearTimeout(burstTimer.current);
+      burstTimer.current = null;
+    }
+    if (pendingBeforeEdit.current) {
+      undoStack.current.push(pendingBeforeEdit.current);
+      if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
+      pendingBeforeEdit.current = null;
+    }
+  }
+
+  function persistWorkspace(workspace: Workspace): void {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimerWorkspaceId.current = next.id;
+    saveTimerWorkspaceId.current = workspace.id;
     saveTimer.current = window.setTimeout(() => {
-      window.api.workspaces.save(next).catch((err) => {
+      window.api.workspaces.save(workspace).catch((err) => {
         console.error("Failed to save workspace:", err);
       });
     }, 400);
+  }
+
+  function handleWorkspaceChange(next: Workspace): void {
+    // Capture the pre-burst snapshot the first time this fires after the
+    // last commit — later calls within the same burst (e.g. every
+    // intermediate step of one drag) leave it alone, so the whole burst
+    // collapses into a single undo step. Reads activeWorkspace from this
+    // render's closure rather than a setState updater, which Strict Mode
+    // can invoke twice in development purely to detect impurities.
+    if (activeWorkspace && pendingBeforeEdit.current === null) {
+      pendingBeforeEdit.current = activeWorkspace;
+    }
+    setActiveWorkspace(next);
+    redoStack.current = [];
+    if (burstTimer.current) window.clearTimeout(burstTimer.current);
+    burstTimer.current = window.setTimeout(commitPendingHistory, UNDO_BURST_IDLE_MS);
+    persistWorkspace(next);
+  }
+
+  function handleUndo(): void {
+    commitPendingHistory();
+    const previous = undoStack.current.pop();
+    if (!previous || !activeWorkspace) return;
+    redoStack.current.push(activeWorkspace);
+    setActiveWorkspace(previous);
+    persistWorkspace(previous);
+  }
+
+  function handleRedo(): void {
+    const next = redoStack.current.pop();
+    if (!next || !activeWorkspace) return;
+    undoStack.current.push(activeWorkspace);
+    setActiveWorkspace(next);
+    persistWorkspace(next);
   }
 
   if (view === "settings") {
@@ -212,7 +322,9 @@ export function App() {
           onDeleteFolder={handleDeleteFolder}
           onRenameWorkspace={handleRenameWorkspace}
           onRenameFolder={handleRenameFolder}
+          onReorderFolders={handleReorderFolders}
           onMoveToFolder={handleMoveToFolder}
+          onReorderWorkspaces={handleReorderWorkspaces}
           onOpenSettings={() => setView("settings")}
         />
       )}

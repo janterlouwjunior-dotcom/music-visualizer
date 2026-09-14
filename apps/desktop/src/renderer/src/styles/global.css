@@ -20,6 +20,12 @@ body {
   font-size: var(--font-size-md);
   line-height: var(--line-height-normal);
   -webkit-font-smoothing: antialiased;
+  /* This is a desktop app, not a document — dragging over labels, icons, or
+     SVG text (e.g. dragging a component, or a MIDI note landing under the
+     cursor over Circle of Fifths' letters) shouldn't paint a text-selection
+     highlight over them. Re-enabled explicitly wherever text genuinely is
+     meant to be selected (see .text-box in TextBox.css). */
+  user-select: none;
 }
 
 ::-webkit-scrollbar {

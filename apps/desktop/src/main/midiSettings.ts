@@ -47,10 +47,10 @@ export async function deleteMidiInput(id: string): Promise<void> {
   });
 }
 
-export async function addMidiOutput(name: string): Promise<MidiOutputDevice> {
+export async function addMidiOutput(name: string, sourceId: string): Promise<MidiOutputDevice> {
   return runSerially(async () => {
     const settings = await readSettings();
-    const device: MidiOutputDevice = { id: `output-${Date.now().toString(36)}`, name };
+    const device: MidiOutputDevice = { id: `output-${Date.now().toString(36)}`, name, sourceId };
     settings.outputs.push(device);
     await writeSettings(settings);
     return device;

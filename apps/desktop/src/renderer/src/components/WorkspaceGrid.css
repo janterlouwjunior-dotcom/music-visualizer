@@ -2,7 +2,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: var(--space-3);
 }
 
@@ -21,6 +23,76 @@
 .workspace-grid__toolbar-group--right {
   display: flex;
   justify-content: flex-end;
+}
+
+.workspace-grid__playback-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.workspace-grid__playback-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.workspace-grid__playback-button:hover {
+  border-color: var(--color-border-strong);
+}
+
+.workspace-grid__playback-button[aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* Not wired to anything yet — Ableton Link support is a placeholder. */
+.workspace-grid__playback-button--placeholder {
+  width: auto;
+  padding: 0 var(--space-2);
+  color: var(--color-text-faint);
+  cursor: not-allowed;
+}
+
+.workspace-grid__bpm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.workspace-grid__bpm-value {
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Anchored at the right-click point via inline left/top (see
+   WorkspaceGrid.tsx) rather than the .workspace-grid__popover pattern used
+   elsewhere, which anchors to a toolbar button instead. */
+.workspace-grid__context-menu {
+  position: fixed;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  min-width: 240px;
 }
 
 .workspace-grid__popover {
@@ -57,7 +129,7 @@
   color: var(--color-text-muted);
 }
 
-.workspace-grid__settings-field input {
+.workspace-grid__settings-field input[type="number"] {
   width: 72px;
   background: var(--color-bg-sunken);
   color: var(--color-text);
@@ -99,10 +171,6 @@
   background: var(--color-bg-sunken);
 }
 
-.workspace-grid__picker-icon {
-  font-size: var(--font-size-lg);
-}
-
 .workspace-grid__picker-text {
   display: flex;
   flex-direction: column;
@@ -119,45 +187,208 @@
   color: var(--color-text-muted);
 }
 
+/* Fixed-height regardless of whether something's selected — a bar that grew
+   or shrank with selection would make the grid area below it change size
+   every time you clicked a component, which is exactly the kind of
+   edit-mode/play-mode size mismatch this bar exists to avoid (see
+   WorkspaceGrid.tsx and the .workspace-grid__area comment below). */
+.workspace-grid__selection-bar {
+  display: flex;
+  /* Bottom-aligned: every field's own control (a button, a select, the
+     note-range slider) is the last thing in its column, whether or not it
+     has a label above it — so aligning column bottoms lines up every
+     control's own bottom edge on one shared baseline, label or no label.
+     Only the note-range slider is taller than the rest (it needs room for
+     its floating min/max value labels above the track), so it alone pokes
+     up further above that baseline — expected for a visibly bigger control,
+     not a misalignment. */
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  gap: var(--space-3);
+  /* Tall enough for the tallest field (the note-range slider, now beside
+     its low/high inputs rather than stacked above them) with a little
+     headroom. overflow-y stays "auto" as a safety net rather than "hidden":
+     worst case a scrollbar appears, never silently-clipped controls. */
+  height: 96px;
+  min-height: 96px;
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.workspace-grid__selection-bar-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-faint);
+  align-self: center;
+}
+
+/* ComponentSettingsFields is normally a narrow vertical stack (see its own
+   popover-oriented CSS) — laid out as a row of fields here instead, since
+   this bar runs along the top of the screen rather than down a sidebar. */
+.workspace-grid__selection-bar .component-settings {
+  flex-direction: row;
+  align-items: flex-end;
+  width: auto;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+}
+
+.workspace-grid__selection-bar .component-settings__field {
+  flex: none;
+  min-width: 130px;
+}
+
+/* Icon-only fields (bold/italic toggles, the alignment group) are just a
+   32px button or two — the 130px min-width above is sized for a dropdown's
+   label-plus-control and would otherwise strand each icon in a wide box of
+   empty space, which is exactly what made them look "spaced too far apart." */
+.workspace-grid__selection-bar .component-settings__field--icon {
+  min-width: 0;
+}
+
+/* This is the element WorkspaceGrid.tsx measures to compute rowHeightPx and
+   colWidthPx, so it has to be a real flex sizing target — min-height: 0 is
+   what lets it actually shrink to "whatever's left after the toolbar and
+   selection bar," rather than being pushed out to its content's height and
+   overflowing .workspace-grid. */
+.workspace-grid__area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-grid__area--placing {
+  cursor: crosshair;
+}
+
+/* Drawn as one <rect> per cell at exact react-grid-layout pixel coordinates
+   (see WorkspaceGrid.tsx's calcItemRectPx) rather than a repeating CSS
+   background pattern — RGL rounds each item's own position/size
+   independently, so a uniform repeat drifts out of alignment with real
+   item edges by a pixel or two as x/y grow. This is what "Show grid" is
+   for: it should show you where things will actually land. */
+.workspace-grid__grid-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.workspace-grid__grid-cell {
+  fill: none;
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+.workspace-grid__placement-ghost {
+  position: absolute;
+  z-index: 5;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--color-accent);
+  background: var(--color-accent);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.workspace-grid__placement-ghost--invalid {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+}
+
 .workspace-grid__empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 240px;
+  text-align: center;
+  padding: var(--space-4);
   color: var(--color-text-faint);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
+  pointer-events: none;
 }
 
-.viz-card__drag-handle {
+/* Panel no longer renders a header at all for grid items (see
+   WorkspaceGrid.tsx — no title/actions props are passed to it) so a
+   component's content fills exactly the same box in edit and play mode;
+   the only edit-only chrome is the small floating .viz-card__overlay-controls
+   corner badge. position:relative here is what makes that badge (and its
+   position:absolute) anchor to the card's own edge rather than to
+   .mtv-panel__body's padded content box or some further-out ancestor. */
+.viz-card.mtv-panel {
+  position: relative;
+}
+
+/* Each visualization is responsible for its own internal scrolling (or
+   deliberately has none) — a second, independent scrollbar from this
+   shared body wrapper on top of that is never wanted. */
+.viz-card .mtv-panel__body {
+  overflow: hidden;
+}
+
+.viz-card__overlay-controls {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  box-shadow: var(--shadow-sm);
+}
+
+.viz-card__move-handle {
   cursor: grab;
 }
 
-/* Panel.css sets overflow:hidden for rounded-corner clipping, but that would
-   also clip the component settings popover, which intentionally extends
-   past the card's edges. Two classes beats Panel's single-class selector. */
-.viz-card.mtv-panel {
-  overflow: visible;
+.viz-card__move-handle:active {
+  cursor: grabbing;
 }
 
 /* Play mode is meant to read as a clean performance view, not a grid of
-   boxes — the header (icon/name/settings/remove) is edit-only chrome and
-   is omitted entirely in play mode (see WorkspaceGrid.tsx); this drops the
-   panel's own surface too, so all that's left is the raw component content.
-   Border/shadow go transparent rather than being removed outright, so the
-   layout doesn't reflow when toggling modes. */
+   boxes — border/shadow go transparent rather than being removed outright,
+   so the layout doesn't reflow when toggling modes. */
 .viz-card--play.mtv-panel {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
 }
 
-.viz-card--play .mtv-panel__header {
-  border-bottom-color: transparent;
+.viz-card--selected.mtv-panel {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
-.viz-card__settings-anchor {
-  position: relative;
+/* All four corners are resize handles (see resizeHandles on
+   AutoWidthGridLayout) — the default react-resizable glyph is only drawn
+   and rotated correctly for a single bottom-right handle, so it's dropped
+   entirely here in favor of just the per-corner resize cursor react-
+   resizable's own stylesheet already sets. Scoped to the workspace grid so
+   it doesn't affect resizable elements elsewhere in the app, if any. */
+.workspace-grid__layout .react-resizable-handle {
+  background-image: none;
+}
+
+/* The actual corner glyph came from here, not the rule above: react-grid-
+   layout's OWN stylesheet (a separate package from react-resizable) draws
+   this L-shaped bracket via a ::after pseudo-element, independently of the
+   background-image the react-resizable rule above was targeting — which is
+   why it kept showing up even after that fix. Needs to out-specificity
+   react-grid-layout's ".react-grid-item > .react-resizable-handle::after"
+   (2 classes), hence the extra .workspace-grid__layout ancestor here. */
+.workspace-grid__layout .react-grid-item > .react-resizable-handle::after {
+  display: none;
 }
 
 .viz-card__icon-button {
@@ -176,20 +407,6 @@
 
 .viz-card__remove:hover {
   color: var(--color-danger);
-}
-
-.component-settings-popover {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
-  z-index: var(--z-overlay);
-  background: var(--color-bg-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-3);
-  max-height: 360px;
-  overflow-y: auto;
 }
 
 .viz-card__unknown {

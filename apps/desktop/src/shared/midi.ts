@@ -20,6 +20,8 @@ export interface MidiNoteEvent {
   source: "device" | "internal";
   /** Name of the input port that raised this event; undefined for internal/sent events. */
   portId?: string;
+  /** For a SENT event only: the exact native output port name to send it to. No target means the note goes nowhere at the native layer — see midiWorker.ts's "send" handler — so a component with no output configured stays silent rather than spraying every open output. */
+  outputPortId?: string;
 }
 
 export interface MidiInitResult {
@@ -32,7 +34,7 @@ export interface MidiDeviceInfo {
   outputs: string[];
 }
 
-const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+export const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
 /** MIDI note number to scientific pitch notation, e.g. 60 -> "C4" (middle C), 0 -> "C-1". */
 export function noteNumberToName(note: number): string {

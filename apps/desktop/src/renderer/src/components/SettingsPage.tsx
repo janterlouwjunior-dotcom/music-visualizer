@@ -12,6 +12,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
   const [inputs, setInputs] = useState<MidiInputDevice[]>([]);
   const [outputs, setOutputs] = useState<MidiOutputDevice[]>([]);
   const [availableInputs, setAvailableInputs] = useState<MidiPortInfo[]>([]);
+  const [availableOutputs, setAvailableOutputs] = useState<MidiPortInfo[]>([]);
 
   const [addingInput, setAddingInput] = useState(false);
   const [newInputName, setNewInputName] = useState("");
@@ -19,6 +20,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 
   const [addingOutput, setAddingOutput] = useState(false);
   const [newOutputName, setNewOutputName] = useState("");
+  const [newOutputSourceId, setNewOutputSourceId] = useState("");
 
   async function refresh(): Promise<void> {
     const settings = await window.api.midiSettings.get();
@@ -26,10 +28,15 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     setOutputs(settings.outputs);
   }
 
+  function refreshAvailablePorts(): void {
+    setAvailableInputs(midiService.listAvailableInputs());
+    setAvailableOutputs(midiService.listAvailableOutputs());
+  }
+
   useEffect(() => {
     refresh();
-    midiService.init().then(() => setAvailableInputs(midiService.listInputs()));
-    return midiService.onDeviceChange(() => setAvailableInputs(midiService.listInputs()));
+    midiService.init().then(refreshAvailablePorts);
+    return midiService.onDeviceChange(refreshAvailablePorts);
   }, []);
 
   async function handleAddInput(): Promise<void> {
@@ -47,9 +54,10 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
   }
 
   async function handleAddOutput(): Promise<void> {
-    if (!newOutputName.trim()) return;
-    await window.api.midiSettings.addOutput(newOutputName.trim());
+    if (!newOutputName.trim() || !newOutputSourceId) return;
+    await window.api.midiSettings.addOutput(newOutputName.trim(), newOutputSourceId);
     setNewOutputName("");
+    setNewOutputSourceId("");
     setAddingOutput(false);
     await refresh();
   }
@@ -59,8 +67,12 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     await refresh();
   }
 
-  function resolveInputSourceName(sourceId: string): string {
-    return availableInputs.find((d) => d.id === sourceId)?.name ?? "Not currently connected";
+  function resolveSourceLabel(sourceId: string, available: MidiPortInfo[]): string {
+    return available.find((d) => d.id === sourceId)?.name ?? "Not currently connected";
+  }
+
+  function isSourceConnected(sourceId: string, available: MidiPortInfo[]): boolean {
+    return available.some((d) => d.id === sourceId);
   }
 
   return (
@@ -133,8 +145,14 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
               <li key={device.id} className="settings-page__item">
                 <div>
                   <div className="settings-page__item-name">{device.name}</div>
-                  <div className="settings-page__item-detail">
-                    {resolveInputSourceName(device.sourceId)}
+                  <div
+                    className={`settings-page__item-detail${
+                      isSourceConnected(device.sourceId, availableInputs)
+                        ? ""
+                        : " settings-page__item-detail--pending"
+                    }`}
+                  >
+                    {resolveSourceLabel(device.sourceId, availableInputs)}
                   </div>
                 </div>
                 <button
@@ -154,16 +172,19 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 
         <Panel
           className="settings-page__section"
-          title="Virtual MIDI output devices"
+          title="MIDI output devices"
           actions={
             <Button variant="primary" size="sm" onClick={() => setAddingOutput((v) => !v)}>
-              + Add virtual output
+              + Add output
             </Button>
           }
         >
           <p className="settings-page__hint">
-            Not wired to a real MIDI port yet — this reserves a name so it's ready once virtual
-            port creation is added. Other apps (Bitwig included) won't see it as a device yet.
+            This app doesn't create MIDI ports of its own — Windows has no built-in way to add a
+            "virtual" one. Create a named virtual port first in a tool like{" "}
+            <strong>loopMIDI</strong> (any name you like, e.g. "Lesson synth out"), point Bitwig
+            (or whatever DAW) at that same port, then select it below — this list updates live as
+            soon as loopMIDI creates it.
           </p>
 
           {addingOutput && (
@@ -175,12 +196,30 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 onChange={(e) => setNewOutputName(e.target.value)}
                 autoFocus
               />
+              <select
+                className="settings-page__select"
+                value={newOutputSourceId}
+                onChange={(e) => setNewOutputSourceId(e.target.value)}
+              >
+                <option value="">Select a MIDI output…</option>
+                {availableOutputs.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              {availableOutputs.length === 0 && (
+                <p className="settings-page__hint settings-page__hint--warning">
+                  No MIDI output ports detected — create one in loopMIDI first. This list updates
+                  live once it exists.
+                </p>
+              )}
               <div className="settings-page__form-actions">
                 <Button
                   variant="primary"
                   size="sm"
                   onClick={handleAddOutput}
-                  disabled={!newOutputName.trim()}
+                  disabled={!newOutputName.trim() || !newOutputSourceId}
                 >
                   Add
                 </Button>
@@ -196,8 +235,14 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
               <li key={device.id} className="settings-page__item">
                 <div>
                   <div className="settings-page__item-name">{device.name}</div>
-                  <div className="settings-page__item-detail settings-page__item-detail--pending">
-                    Not yet connected
+                  <div
+                    className={`settings-page__item-detail${
+                      isSourceConnected(device.sourceId, availableOutputs)
+                        ? ""
+                        : " settings-page__item-detail--pending"
+                    }`}
+                  >
+                    {resolveSourceLabel(device.sourceId, availableOutputs)}
                   </div>
                 </div>
                 <button
@@ -210,7 +255,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
               </li>
             ))}
             {outputs.length === 0 && (
-              <li className="settings-page__empty">No virtual outputs configured yet.</li>
+              <li className="settings-page__empty">No output devices configured yet.</li>
             )}
           </ul>
         </Panel>

@@ -1,16 +1,19 @@
 .midi-keyboard {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   height: 100%;
+  width: 100%;
   min-height: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
 }
 
+/* preserveAspectRatio="none" on the SVG (see MidiKeyboard.tsx) lets it fill
+   the panel exactly, at whatever width/height the panel is resized to,
+   rather than preserving the keys' real width/height ratio and either
+   scrolling or letterboxing. */
 .midi-keyboard__svg {
+  width: 100%;
   height: 100%;
-  max-height: 160px;
 }
 
 .midi-keyboard__key {
@@ -31,5 +34,5 @@
 }
 
 .midi-keyboard__key--active {
-  fill: var(--accent-color, var(--color-accent));
+  fill: var(--color-accent);
 }

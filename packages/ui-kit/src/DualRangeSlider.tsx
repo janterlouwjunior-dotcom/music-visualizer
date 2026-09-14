@@ -96,6 +96,12 @@ export function DualRangeSlider({
   }
 
   function handlePointerMove(handle: Handle, e: ReactPointerEvent<HTMLDivElement>): void {
+    // Without this guard, a thumb that merely has the mouse hovering over it
+    // (button up) still receives pointermove — pointer capture only
+    // redirects *where* move events target, it doesn't gate them on button
+    // state — so the handle would drift on hover alone. Only track once this
+    // handle's own pointerdown actually started a drag.
+    if (dragging !== handle) return;
     moveHandle(handle, e.clientX);
   }
 

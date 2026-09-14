@@ -1,6 +1,8 @@
 import type { VisualizationDefinition } from "./types";
 import { CircleOfFifths, type CircleOfFifthsConfig } from "./visualizations/CircleOfFifths";
+import { EuclideanRhythm, type EuclideanRhythmConfig } from "./visualizations/EuclideanRhythm";
 import { MidiKeyboard, type MidiKeyboardConfig } from "./visualizations/MidiKeyboard";
+import { TextBox, type TextBoxConfig, FONT_OPTIONS } from "./visualizations/TextBox";
 
 /**
  * Registry of every visualization component available to workspaces.
@@ -11,40 +13,44 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
   "circle-of-fifths": {
     key: "circle-of-fifths",
     name: "Circle of Fifths",
-    description: "Interactive circle of fifths — highlights a key and reacts to incoming MIDI notes.",
-    icon: "🎯",
+    description: "Interactive circle of fifths — reacts to incoming MIDI notes and names the chord being played.",
     configSchema: [
       {
-        key: "highlightKey",
-        label: "Key",
-        type: "select",
-        options: [
-          "C",
-          "G",
-          "D",
-          "A",
-          "E",
-          "B",
-          "F♯",
-          "D♭",
-          "A♭",
-          "E♭",
-          "B♭",
-          "F"
-        ].map((k) => ({ value: k, label: k }))
+        key: "showChordSymbol",
+        label: "Show chord symbol",
+        type: "toggleButton",
+        icon: "C7",
+        iconStyle: { fontSize: "11px", fontWeight: 600 }
       },
-      { key: "listenForMidi", label: "Listen for MIDI", type: "boolean" }
+      { key: "useFlats", label: "Chord spelling", type: "flatSharp" },
+      { key: "inputDeviceId", label: "MIDI input device", type: "midiInputDevice" },
+      { key: "inputChannel", label: "Input channel", type: "midiInputChannel" },
+      { key: "outputDeviceId", label: "MIDI output device", type: "midiOutputDevice" },
+      { key: "outputChannel", label: "Output channel", type: "midiOutputChannel" }
     ],
-    defaultProps: { highlightKey: "C", listenForMidi: true } satisfies CircleOfFifthsConfig,
-    defaultSize: { w: 6, h: 6 },
+    defaultProps: {
+      showChordSymbol: true,
+      useFlats: false,
+      inputDeviceId: "",
+      inputChannel: 0,
+      outputDeviceId: "",
+      outputChannel: 1
+    } satisfies CircleOfFifthsConfig,
+    defaultSize: { w: 2, h: 2 },
     component: CircleOfFifths
   },
   "midi-keyboard": {
     key: "midi-keyboard",
     name: "MIDI Keyboard",
     description: "A playable piano with a customizable key range — highlights incoming notes and plays back out.",
-    icon: "🎹",
     configSchema: [
+      { key: "inputDeviceId", label: "MIDI input device", type: "midiInputDevice" },
+      { key: "inputChannel", label: "Input channel", type: "midiInputChannel" },
+      { key: "outputDeviceId", label: "MIDI output device", type: "midiOutputDevice" },
+      { key: "outputChannel", label: "Output channel", type: "midiOutputChannel" },
+      // Listed last: by far the tallest field (a slider plus two number
+      // inputs), so it anchors the end of the settings bar rather than
+      // sitting in front of the short device/channel dropdowns.
       {
         key: "noteRange",
         label: "Key range",
@@ -53,23 +59,97 @@ export const componentRegistry: Record<string, VisualizationDefinition<any>> = {
         max: 127,
         minGap: 23, // 24 keys - 1
         maxGap: 87 // 88 keys - 1
-      },
-      { key: "accentColor", label: "Accent color", type: "color" },
-      { key: "inputDeviceId", label: "MIDI input device", type: "midiInputDevice" },
-      { key: "inputChannel", label: "Input channel", type: "midiInputChannel" },
-      { key: "outputDeviceId", label: "MIDI output device", type: "midiOutputDevice" },
-      { key: "outputChannel", label: "Output channel", type: "midiOutputChannel" }
+      }
     ],
     defaultProps: {
       noteRange: { low: 48, high: 108 },
-      accentColor: "#6c8cff",
       inputDeviceId: "",
       inputChannel: 0,
       outputDeviceId: "",
       outputChannel: 1
     } satisfies MidiKeyboardConfig,
-    defaultSize: { w: 8, h: 3 },
+    defaultSize: { w: 4, h: 2 },
     component: MidiKeyboard
+  },
+  "text-box": {
+    key: "text-box",
+    name: "Text Box",
+    description: "A simple text box that scales its text to fit — with bold, italic, font, and alignment.",
+    configSchema: [
+      {
+        key: "bold",
+        label: "Bold",
+        type: "toggleButton",
+        icon: "B",
+        iconStyle: { fontWeight: "bold" },
+        group: "Style"
+      },
+      {
+        key: "italic",
+        label: "Italic",
+        type: "toggleButton",
+        icon: "I",
+        iconStyle: { fontStyle: "italic" },
+        group: "Style"
+      },
+      { key: "align", label: "Alignment", type: "align" },
+      { key: "fontFamily", label: "Font", type: "select", options: FONT_OPTIONS }
+    ],
+    defaultProps: {
+      text: "",
+      bold: false,
+      italic: false,
+      fontFamily: "",
+      align: "left"
+    } satisfies TextBoxConfig,
+    defaultSize: { w: 2, h: 1 },
+    component: TextBox
+  },
+  "euclidean-rhythm": {
+    key: "euclidean-rhythm",
+    name: "Euclidean Rhythm",
+    description:
+      "A circular rhythm pattern generated by Bjorklund's algorithm — spreads a number of beats as evenly as possible across a number of steps.",
+    configSchema: [
+      { key: "beats", label: "Beats", type: "number", min: 0, max: 32 },
+      { key: "steps", label: "Steps", type: "number", min: 2, max: 32 },
+      { key: "rotation", label: "Rotation", type: "number", min: 0, max: 31 },
+      { key: "noteNumber", label: "Note", type: "note" },
+      {
+        key: "subdivision",
+        label: "Subdivision",
+        type: "select",
+        options: [
+          { value: "4", label: "Quarter notes" },
+          { value: "8", label: "8th notes" },
+          { value: "16", label: "16th notes" },
+          { value: "32", label: "32nd notes" }
+        ]
+      },
+      { key: "roundedRing", label: "Round into a circle", type: "toggleButton", icon: "○" },
+      { key: "showRhythmName", label: "Show rhythm name", type: "toggleButton", icon: "T" },
+      { key: "hotkeysLocked", label: "Lock hotkeys", type: "toggleButton", icon: "🔒" },
+      { key: "outputDeviceId", label: "MIDI output device", type: "midiOutputDevice" },
+      { key: "outputChannel", label: "Output channel", type: "midiOutputChannel" }
+    ],
+    defaultProps: {
+      // 3 beats over 8 steps is the tresillo — one of the best-known
+      // Euclidean rhythms — a friendlier first look than an empty circle.
+      beats: 3,
+      steps: 8,
+      rotation: 0,
+      // 36 = C2, the General MIDI "kick drum" note — a sensible default for
+      // a component whose whole purpose is percussion-style patterns.
+      noteNumber: 36,
+      subdivision: "16",
+      roundedRing: false,
+      showRhythmName: false,
+      hotkeysLocked: false,
+      outputDeviceId: "",
+      outputChannel: 1
+    } satisfies EuclideanRhythmConfig,
+    defaultSize: { w: 3, h: 3 },
+    component: EuclideanRhythm
   }
 };
 

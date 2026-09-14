@@ -7,10 +7,11 @@ import {
   listWorkspaces,
   loadWorkspace,
   renameWorkspace,
+  reorderWorkspaces,
   saveWorkspace,
   setWorkspaceFolder
 } from "./workspaces";
-import { createFolder, deleteFolder, listFolders, renameFolder } from "./folders";
+import { createFolder, deleteFolder, listFolders, renameFolder, reorderFolders } from "./folders";
 import {
   addMidiInput,
   addMidiOutput,
@@ -145,30 +146,52 @@ function registerIpcHandlers(): void {
   ipcMain.handle("workspaces:list", () => listWorkspaces());
   ipcMain.handle("workspaces:load", (_event, id: string) => loadWorkspace(id));
   ipcMain.handle("workspaces:save", (_event, workspace: Workspace) => saveWorkspace(workspace));
-  ipcMain.handle("workspaces:create", (_event, name: string) => createWorkspace(name));
+  ipcMain.handle("workspaces:create", (_event, name: string, folderId: string) =>
+    createWorkspace(name, folderId)
+  );
   ipcMain.handle("workspaces:duplicate", (_event, id: string, newName: string) =>
     duplicateWorkspace(id, newName)
   );
   ipcMain.handle("workspaces:delete", (_event, id: string) => deleteWorkspace(id));
   ipcMain.handle("workspaces:rename", (_event, id: string, name: string) => renameWorkspace(id, name));
-  ipcMain.handle("workspaces:setFolder", (_event, id: string, folderId: string | null) =>
+  ipcMain.handle("workspaces:setFolder", (_event, id: string, folderId: string) =>
     setWorkspaceFolder(id, folderId)
+  );
+  ipcMain.handle("workspaces:reorder", (_event, folderId: string, orderedIds: string[]) =>
+    reorderWorkspaces(folderId, orderedIds)
   );
   ipcMain.handle("folders:list", () => listFolders());
   ipcMain.handle("folders:create", (_event, name: string) => createFolder(name));
   ipcMain.handle("folders:rename", (_event, id: string, name: string) => renameFolder(id, name));
+  ipcMain.handle("folders:reorder", (_event, orderedIds: string[]) => reorderFolders(orderedIds));
   ipcMain.handle("folders:delete", (_event, id: string) => deleteFolder(id));
   ipcMain.handle("midiSettings:get", () => getMidiSettings());
-  ipcMain.handle("midiSettings:addInput", (_event, name: string, sourceId: string) =>
-    addMidiInput(name, sourceId)
-  );
-  ipcMain.handle("midiSettings:deleteInput", (_event, id: string) => deleteMidiInput(id));
-  ipcMain.handle("midiSettings:addOutput", (_event, name: string) => addMidiOutput(name));
-  ipcMain.handle("midiSettings:deleteOutput", (_event, id: string) => deleteMidiOutput(id));
+  // Each of these applies to the live, already-running MIDI worker
+  // immediately after saving — not just on next launch — so a device
+  // removed here actually stops being listened to/sent to right away.
+  ipcMain.handle("midiSettings:addInput", async (_event, name: string, sourceId: string) => {
+    const device = await addMidiInput(name, sourceId);
+    await nativeMidi.reconfigure();
+    return device;
+  });
+  ipcMain.handle("midiSettings:deleteInput", async (_event, id: string) => {
+    await deleteMidiInput(id);
+    await nativeMidi.reconfigure();
+  });
+  ipcMain.handle("midiSettings:addOutput", async (_event, name: string, sourceId: string) => {
+    const device = await addMidiOutput(name, sourceId);
+    await nativeMidi.reconfigure();
+    return device;
+  });
+  ipcMain.handle("midiSettings:deleteOutput", async (_event, id: string) => {
+    await deleteMidiOutput(id);
+    await nativeMidi.reconfigure();
+  });
   ipcMain.handle("updater:install", () => quitAndInstallUpdate());
 
   ipcMain.handle("midi:init", () => nativeMidi.start());
   ipcMain.handle("midi:getDeviceInfo", () => nativeMidi.getDeviceInfo());
+  ipcMain.handle("midi:getAvailablePorts", () => nativeMidi.getAvailablePorts());
   ipcMain.on("midi:send", (_event, midiEvent: Omit<MidiNoteEvent, "source">) =>
     nativeMidi.sendNote(midiEvent)
   );

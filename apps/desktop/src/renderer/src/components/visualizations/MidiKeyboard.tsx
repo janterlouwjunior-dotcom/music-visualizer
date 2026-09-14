@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { NoteRangeValue, VisualizationProps } from "../types";
 import type { MidiSettings } from "../../../../shared/midiSettings";
 import { noteNumberToName } from "../../../../shared/midi";
@@ -6,7 +6,6 @@ import "./MidiKeyboard.css";
 
 export interface MidiKeyboardConfig {
   noteRange: NoteRangeValue;
-  accentColor: string;
   inputDeviceId: string;
   /** 0 = All channels, 1-16 = specific. */
   inputChannel: number;
@@ -93,11 +92,23 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
     () => midiSettings.inputs.find((d) => d.id === config.inputDeviceId)?.sourceId,
     [midiSettings.inputs, config.inputDeviceId]
   );
+  const outputSourceId = useMemo(
+    () => midiSettings.outputs.find((d) => d.id === config.outputDeviceId)?.sourceId,
+    [midiSettings.outputs, config.outputDeviceId]
+  );
 
   useEffect(() => {
+    // No input device selected means no reaction at all — not "listen to
+    // everything." Previously `config.inputDeviceId && ...` short-circuited
+    // to false on an empty selection, which let every connected device
+    // through instead of none.
+    if (!config.inputDeviceId) {
+      setActiveNotes(new Set());
+      return;
+    }
     return midi.onMidiNote((event) => {
       if (event.source !== "device") return;
-      if (config.inputDeviceId && event.portId !== inputSourceId) return;
+      if (event.portId !== inputSourceId) return;
       if (config.inputChannel !== 0 && event.channel !== config.inputChannel - 1) return;
 
       setActiveNotes((prev) => {
@@ -106,8 +117,21 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
         else next.delete(event.note);
         return next;
       });
+
+      // Pass the incoming note through to this keyboard's own configured
+      // output, remapped onto its output channel — playing a physical
+      // controller pointed at this keyboard's input should play out
+      // wherever this keyboard is pointed as output, the same as clicking a
+      // key with the mouse already does below.
+      midi.sendMidiNote({
+        type: event.type,
+        note: event.note,
+        velocity: event.velocity,
+        channel: config.outputChannel - 1,
+        outputPortId: outputSourceId
+      });
     });
-  }, [midi, config.inputDeviceId, config.inputChannel, inputSourceId]);
+  }, [midi, config.inputDeviceId, config.inputChannel, config.outputChannel, inputSourceId, outputSourceId]);
 
   const { keys, left, right } = useMemo(
     () => buildKeys(noteRange.low, noteRange.high),
@@ -116,7 +140,13 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
 
   function playNoteOn(note: number): void {
     setActiveNotes((prev) => new Set(prev).add(note));
-    midi.sendMidiNote({ type: "noteon", note, velocity: 100, channel: config.outputChannel - 1 });
+    midi.sendMidiNote({
+      type: "noteon",
+      note,
+      velocity: 100,
+      channel: config.outputChannel - 1,
+      outputPortId: outputSourceId
+    });
   }
 
   function playNoteOff(note: number): void {
@@ -125,10 +155,15 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
       next.delete(note);
       return next;
     });
-    midi.sendMidiNote({ type: "noteoff", note, velocity: 0, channel: config.outputChannel - 1 });
+    midi.sendMidiNote({
+      type: "noteoff",
+      note,
+      velocity: 0,
+      channel: config.outputChannel - 1,
+      outputPortId: outputSourceId
+    });
   }
 
-  const svgStyle = { "--accent-color": config.accentColor } as CSSProperties;
   const firstNote = keys[0]?.note ?? noteRange.low;
   const lastNote = keys[keys.length - 1]?.note ?? noteRange.high;
 
@@ -136,8 +171,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
     <div className="midi-keyboard">
       <svg
         viewBox={`${left} 0 ${right - left} ${WHITE_KEY_HEIGHT}`}
+        preserveAspectRatio="none"
         className="midi-keyboard__svg"
-        style={svgStyle}
         role="img"
         aria-label={`MIDI keyboard, ${noteNumberToName(firstNote)} to ${noteNumberToName(lastNote)}`}
       >
@@ -150,6 +185,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
               y={0}
               width={WHITE_KEY_WIDTH}
               height={WHITE_KEY_HEIGHT}
+              rx={2}
+              ry={4}
               className={`midi-keyboard__key midi-keyboard__key--white${
                 activeNotes.has(k.note) ? " midi-keyboard__key--active" : ""
               }`}
@@ -167,6 +204,8 @@ export function MidiKeyboard({ config, midi }: VisualizationProps<MidiKeyboardCo
               y={0}
               width={BLACK_KEY_WIDTH}
               height={BLACK_KEY_HEIGHT}
+              rx={1.5}
+              ry={3}
               className={`midi-keyboard__key midi-keyboard__key--black${
                 activeNotes.has(k.note) ? " midi-keyboard__key--active" : ""
               }`}

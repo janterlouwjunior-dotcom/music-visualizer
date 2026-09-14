@@ -8,9 +8,10 @@ import type { MidiDeviceInfo, MidiInitResult, MidiNoteEvent } from "../../../sha
  * least one real machine this app has run on, reproduced even in a bare
  * Electron app with none of this app's code involved.
  *
- * Keeps the exact same public shape the old Web-MIDI-backed version had
- * (init/subscribe/send/getDeviceInfo/listInputs/onDeviceChange) so nothing
- * elsewhere in the renderer needed to change when the transport did.
+ * Only the ports named in the user's saved MIDI settings are ever actually
+ * opened (see nativeMidi.ts) — "available" below means every port visible on
+ * the system, for populating a Settings picker; "active"/getDeviceInfo means
+ * just the ones currently open.
  */
 
 type Handler = (event: MidiNoteEvent) => void;
@@ -22,10 +23,15 @@ export interface MidiPortInfo {
   name: string;
 }
 
+function toPortInfoList(names: string[]): MidiPortInfo[] {
+  return names.map((name) => ({ id: name, name }));
+}
+
 class MidiService {
   private handlers = new Set<Handler>();
   private deviceChangeHandlers = new Set<() => void>();
-  private deviceInfo: MidiDeviceInfo = { inputs: [], outputs: [] };
+  private activePorts: MidiDeviceInfo = { inputs: [], outputs: [] };
+  private availablePorts: MidiDeviceInfo = { inputs: [], outputs: [] };
   private initPromise: Promise<MidiInitResult> | null = null;
   private wired = false;
 
@@ -35,11 +41,19 @@ class MidiService {
 
     window.api.midi.onNote((event) => this.dispatch(event));
     window.api.midi.onDeviceChange(() => {
-      window.api.midi.getDeviceInfo().then((info) => {
-        this.deviceInfo = info;
+      this.refreshCachedPorts().then(() => {
         for (const handler of this.deviceChangeHandlers) handler();
       });
     });
+  }
+
+  private async refreshCachedPorts(): Promise<void> {
+    const [active, available] = await Promise.all([
+      window.api.midi.getDeviceInfo(),
+      window.api.midi.getAvailablePorts()
+    ]);
+    this.activePorts = active;
+    this.availablePorts = available;
   }
 
   async init(): Promise<MidiInitResult> {
@@ -48,9 +62,7 @@ class MidiService {
 
     this.initPromise = (async () => {
       const result = await window.api.midi.init();
-      if (result.ok) {
-        this.deviceInfo = await window.api.midi.getDeviceInfo();
-      }
+      await this.refreshCachedPorts();
       return result;
     })();
 
@@ -67,22 +79,28 @@ class MidiService {
     return () => this.handlers.delete(handler);
   }
 
-  /** Emit a note out to all connected MIDI outputs (e.g. a track pointed at Bitwig), and echo locally. */
+  /** Emit a note out to all selected MIDI outputs (e.g. a track pointed at Bitwig), and echo locally. */
   send(event: Omit<MidiNoteEvent, "source">): void {
     window.api.midi.send(event);
     this.dispatch({ ...event, source: "internal" });
   }
 
+  /** Currently open ports — what's actually connected and selected right now. */
   getDeviceInfo(): MidiDeviceInfo {
-    return this.deviceInfo;
+    return this.activePorts;
   }
 
-  /** Connected MIDI inputs as {id, name} pairs, for device-picker dropdowns. */
-  listInputs(): MidiPortInfo[] {
-    return this.deviceInfo.inputs.map((name) => ({ id: name, name }));
+  /** Every input port visible on the system, for Settings' "add input" picker. */
+  listAvailableInputs(): MidiPortInfo[] {
+    return toPortInfoList(this.availablePorts.inputs);
   }
 
-  /** Notified whenever a MIDI device is plugged in or unplugged. */
+  /** Every output port visible on the system, for Settings' "add output" picker. */
+  listAvailableOutputs(): MidiPortInfo[] {
+    return toPortInfoList(this.availablePorts.outputs);
+  }
+
+  /** Notified whenever the available or active port lists change (hot-plug, or a Settings edit). */
   onDeviceChange(handler: () => void): () => void {
     this.deviceChangeHandlers.add(handler);
     return () => this.deviceChangeHandlers.delete(handler);

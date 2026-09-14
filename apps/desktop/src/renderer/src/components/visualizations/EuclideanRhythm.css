@@ -1,0 +1,73 @@
+.euclidean-rhythm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+.euclidean-rhythm__svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.euclidean-rhythm__ring {
+  fill: none;
+  stroke: var(--color-border-strong);
+  stroke-width: 1.5;
+}
+
+.euclidean-rhythm__node {
+  fill: var(--color-bg-sunken);
+  stroke: var(--color-border-strong);
+  stroke-width: 2;
+}
+
+/* A held beat's node — solid fill, same idea as an "x" in the paper's box
+   notation vs. a "." for a rest. */
+.euclidean-rhythm__node--beat {
+  fill: var(--color-accent);
+  stroke: var(--color-accent);
+}
+
+/* The playhead passing over a rest — a subtle ring, since nothing is
+   actually sounding here. */
+.euclidean-rhythm__node--playhead {
+  stroke: var(--color-text);
+  stroke-width: 3;
+}
+
+/* The playhead landing on a beat — this is the instant a note actually
+   fires, so it gets the same bright "live MIDI" color used everywhere else
+   in the app (e.g. Circle of Fifths' active wedges), clearly brighter than
+   the steady accent-blue "this step is programmed on" fill above. */
+.euclidean-rhythm__node--playhead.euclidean-rhythm__node--beat {
+  fill: var(--color-midi-active);
+  stroke: var(--color-midi-active);
+}
+
+/* Names a traditional rhythm the current beats/steps/rotation happens to
+   match (see NAMED_RHYTHMS in EuclideanRhythm.tsx) — a small aside, not a
+   primary reading of the diagram, hence the muted color. */
+.euclidean-rhythm__name {
+  fill: var(--color-text-muted);
+  font-family: var(--font-family-ui);
+  font-weight: var(--font-weight-medium);
+  pointer-events: none;
+}
+
+/* Live readout while a Beats/Steps/Rotation hotkey is being typed (see
+   HOTKEY_LETTERS in EuclideanRhythm.tsx) — the only feedback a performer
+   gets before releasing the held letter actually commits the value, so it
+   needs to read clearly as "in progress," hence the accent color rather
+   than the muted rhythm-name tone above. */
+.euclidean-rhythm__hotkey-readout {
+  fill: var(--color-accent);
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: 14px;
+  pointer-events: none;
+}

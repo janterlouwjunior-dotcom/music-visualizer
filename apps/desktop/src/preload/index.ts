@@ -9,20 +9,25 @@ const api = {
     list: (): Promise<WorkspaceSummary[]> => ipcRenderer.invoke("workspaces:list"),
     load: (id: string): Promise<Workspace> => ipcRenderer.invoke("workspaces:load", id),
     save: (workspace: Workspace): Promise<void> => ipcRenderer.invoke("workspaces:save", workspace),
-    create: (name: string): Promise<Workspace> => ipcRenderer.invoke("workspaces:create", name),
+    create: (name: string, folderId: string): Promise<Workspace> =>
+      ipcRenderer.invoke("workspaces:create", name, folderId),
     duplicate: (id: string, newName: string): Promise<Workspace> =>
       ipcRenderer.invoke("workspaces:duplicate", id, newName),
     delete: (id: string): Promise<void> => ipcRenderer.invoke("workspaces:delete", id),
     rename: (id: string, name: string): Promise<Workspace> =>
       ipcRenderer.invoke("workspaces:rename", id, name),
-    setFolder: (id: string, folderId: string | null): Promise<Workspace> =>
-      ipcRenderer.invoke("workspaces:setFolder", id, folderId)
+    setFolder: (id: string, folderId: string): Promise<Workspace> =>
+      ipcRenderer.invoke("workspaces:setFolder", id, folderId),
+    reorder: (folderId: string, orderedIds: string[]): Promise<void> =>
+      ipcRenderer.invoke("workspaces:reorder", folderId, orderedIds)
   },
   folders: {
     list: (): Promise<WorkspaceFolder[]> => ipcRenderer.invoke("folders:list"),
     create: (name: string): Promise<WorkspaceFolder> => ipcRenderer.invoke("folders:create", name),
     rename: (id: string, name: string): Promise<WorkspaceFolder> =>
       ipcRenderer.invoke("folders:rename", id, name),
+    reorder: (orderedIds: string[]): Promise<WorkspaceFolder[]> =>
+      ipcRenderer.invoke("folders:reorder", orderedIds),
     delete: (id: string): Promise<void> => ipcRenderer.invoke("folders:delete", id)
   },
   midiSettings: {
@@ -30,8 +35,8 @@ const api = {
     addInput: (name: string, sourceId: string): Promise<MidiInputDevice> =>
       ipcRenderer.invoke("midiSettings:addInput", name, sourceId),
     deleteInput: (id: string): Promise<void> => ipcRenderer.invoke("midiSettings:deleteInput", id),
-    addOutput: (name: string): Promise<MidiOutputDevice> =>
-      ipcRenderer.invoke("midiSettings:addOutput", name),
+    addOutput: (name: string, sourceId: string): Promise<MidiOutputDevice> =>
+      ipcRenderer.invoke("midiSettings:addOutput", name, sourceId),
     deleteOutput: (id: string): Promise<void> => ipcRenderer.invoke("midiSettings:deleteOutput", id)
   },
   updater: {
@@ -48,6 +53,7 @@ const api = {
     // see the comment on MidiNoteEvent in shared/midi.ts for why.
     init: (): Promise<MidiInitResult> => ipcRenderer.invoke("midi:init"),
     getDeviceInfo: (): Promise<MidiDeviceInfo> => ipcRenderer.invoke("midi:getDeviceInfo"),
+    getAvailablePorts: (): Promise<MidiDeviceInfo> => ipcRenderer.invoke("midi:getAvailablePorts"),
     send: (event: Omit<MidiNoteEvent, "source">): void => ipcRenderer.send("midi:send", event),
     onNote: (callback: (event: MidiNoteEvent) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, midiEvent: MidiNoteEvent): void =>
