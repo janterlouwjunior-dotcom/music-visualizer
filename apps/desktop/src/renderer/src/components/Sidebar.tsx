@@ -332,7 +332,7 @@ export function Sidebar({
                     disabled={children.length === 0}
                     title="Open this folder's first workspace — use ← / → to move between its workspaces, drag to reorder folders, double-click to rename"
                   >
-                    📁 {folder.name}
+                    {folder.name}
                   </button>
                 )}
                 <button
